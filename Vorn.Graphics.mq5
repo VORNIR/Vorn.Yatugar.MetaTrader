@@ -121,6 +121,32 @@ void ClearChart() export
    ObjectsDeleteAll(0, -1, OBJ_HLINE);
    ObjectsDeleteAll(0, -1, OBJ_ARROW);
    ObjectsDeleteAll(0, -1, OBJ_RECTANGLE);
+   ObjectsDeleteAll(0, -1, OBJ_EDIT);
    ObjectsDeleteAll(0, -1, OBJ_TREND);
+  }
+//+------------------------------------------------------------------+
+void DrawButton(string name, string text, int x, int y, int width, int height, color clr, color textclr = clrWhite) export
+  {
+   ObjectCreate(0, name, OBJ_EDIT, 0, 0, 0);
+   ObjectSetInteger(0, name, OBJPROP_XDISTANCE, x);
+   ObjectSetInteger(0, name, OBJPROP_YDISTANCE, y);
+   ObjectSetInteger(0, name, OBJPROP_XSIZE, width);
+   ObjectSetInteger(0, name, OBJPROP_YSIZE, height);
+   ObjectSetString(0, name, OBJPROP_FONT, "Segoe UI Semilight");
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 7);
+   ObjectSetInteger(0, name, OBJPROP_ALIGN, ALIGN_CENTER);
+   ObjectSetInteger(0, name, OBJPROP_COLOR, textclr);
+   ObjectSetInteger(0, name, OBJPROP_BGCOLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_COLOR, clr);
+   ObjectSetInteger(0, name, OBJPROP_BORDER_TYPE, BORDER_FLAT);
+   ObjectSetInteger(0, name, OBJPROP_CORNER, CORNER_LEFT_UPPER);
+   ObjectSetInteger(0, name, OBJPROP_STYLE, STYLE_SOLID);
+   ObjectSetInteger(0, name, OBJPROP_WIDTH, 0);
+   ObjectSetInteger(0, name, OBJPROP_BACK, false);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
+   ObjectSetInteger(0, name, OBJPROP_SELECTED, false);
+   ObjectSetInteger(0, name, OBJPROP_HIDDEN, false);
+   ObjectSetInteger(0, name, OBJPROP_ZORDER, 10000);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
   }
 //+------------------------------------------------------------------+

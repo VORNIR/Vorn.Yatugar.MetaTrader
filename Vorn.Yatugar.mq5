@@ -25,6 +25,20 @@ void SetMarkets()
      }
   }
 //+------------------------------------------------------------------+
+bool FindPointData(PointData & pds[], PointData & pd, int id = NULL, ulong state = NULL) export
+  {
+   for(int i = 0; i < ArraySize(pds); i++)
+     {
+      if(id != NULL ? pds[i].Id == id : true)
+         if(state != NULL ? (pds[i].States & state) > 0 : true)
+           {
+            pd = pds[i];
+            return true;
+           }
+     }
+   return false;
+  }
+//+------------------------------------------------------------------+
 void CopyRateData(Chart &chart, datetime from, datetime to, uchar &bytes[]) export
   {
    int st = iBarShift(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, to);
@@ -36,11 +50,15 @@ void CopyRateData(Chart &chart, int start, int count, uchar &bytes[]) export
   {
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
+   int n = CopyRates(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, start, count, rates);
    double SARArray[];
    int hsar = iSAR(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, 0.02, 0.2);
    ArraySetAsSeries(SARArray, true);
    CopyBuffer(hsar, 0, start, count, SARArray);
-   int n = CopyRates(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, start, count, rates);
+   //double zz[];
+   //int hzz = iCustom(_Symbol, timeFrame, "Examples\\ZigZag", 12, 5, 3);
+   //ArraySetAsSeries(zz, true);
+   //CopyBuffer(hzz, 0, start, count, zz);
    for(int i = 0; i < n; ++i)
      {
       RateData dst;
