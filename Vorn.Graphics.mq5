@@ -133,7 +133,7 @@ void DrawButton(string name, string text, int x, int y, int width, int height, c
    ObjectSetInteger(0, name, OBJPROP_XSIZE, width);
    ObjectSetInteger(0, name, OBJPROP_YSIZE, height);
    ObjectSetString(0, name, OBJPROP_FONT, "Segoe UI Semilight");
-   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 7);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, 5);
    ObjectSetInteger(0, name, OBJPROP_ALIGN, ALIGN_CENTER);
    ObjectSetInteger(0, name, OBJPROP_COLOR, textclr);
    ObjectSetInteger(0, name, OBJPROP_BGCOLOR, clr);

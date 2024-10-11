@@ -11,8 +11,8 @@
 void CalendarUpdate(datetime from, datetime to);
 #import
 //+------------------------------------------------------------------+
-sinput datetime From = D'2024.03.01';
-sinput datetime To = D'2024.10.01';
+sinput datetime From = D'2023.01.01';
+sinput datetime To = D'2024.12.01';
 //+------------------------------------------------------------------+
 int OnInit()
   {
