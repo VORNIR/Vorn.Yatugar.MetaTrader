@@ -118,6 +118,20 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Anchor = ANCHOR_BOTTOM;
       DrawPointData(pd, pd.F0);
      }
+   if((pd.States & StateValues::PositiveBaseSwitch()) > 0 && Switch)
+     {
+      pd.Color = pcolor;
+      pd.Icon = 161;
+      pd.Anchor = ANCHOR_TOP;
+      DrawPointData(pd, pd.Low);
+     }
+   if((pd.States & StateValues::NegativeBaseSwitch()) > 0 && Switch)
+     {
+      pd.Color = ncolor;
+      pd.Icon = 161;
+      pd.Anchor = ANCHOR_BOTTOM;
+      DrawPointData(pd, pd.High);
+     }
    if((pd.States & StateValues::SignalB1()) > 0 && Signals)
      {
       pd.Color = pcolor;
