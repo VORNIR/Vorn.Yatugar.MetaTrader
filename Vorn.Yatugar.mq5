@@ -16,7 +16,6 @@ bool InitializeYatugar() export
    bool connected = Vorn::Commands::CreateClient();
    if(connected)
       SetMarkets();
-
    return connected;
   }
 //+------------------------------------------------------------------+
@@ -33,53 +32,25 @@ void SetMarkets()
      }
   }
 //+------------------------------------------------------------------+
-bool FindPointData(PointData & pds[], PointData & pd, int id = NULL, ulong state = NULL) export
+string PointDataName(PointData &pd) export
   {
-   for(int i = 0; i < ArraySize(pds); i++)
+   string name = StringFormat("+%I64uS%dT%d", pd.States, pd.Id, pd.TimeFrame);
+   return name;
+  }
+//+------------------------------------------------------------------+
+bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0) export
+  {
+   for(int i = startIndex; i < ArraySize(pds); i++)
      {
-      if(id != NULL ? pds[i].Id == id : true)
-         if(state != NULL ? (pds[i].States & state) > 0 : true)
-           {
-            pd = pds[i];
-            return true;
-           }
+      if(pds[i].TimeFrame == timeframe)
+         if(id != NULL ? pds[i].Id == id : true)
+            if(state != NULL ? (pds[i].States & state) > 0 : true)
+              {
+               pd = pds[i];
+               return true;
+              }
      }
    return false;
-  }
-//+------------------------------------------------------------------+
-void CopyRateData(Chart &chart, datetime from, datetime to, uchar &bytes[]) export
-  {
-   int st = iBarShift(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, to);
-   int en = iBarShift(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, from);
-   CopyRateData(chart, st, en - st, bytes);
-  }
-//+------------------------------------------------------------------+
-void CopyRateData(Chart &chart, int start, int count, uchar &bytes[]) export
-  {
-   MqlRates rates[];
-   ArraySetAsSeries(rates, true);
-   int n = CopyRates(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, start, count, rates);
-   double SARArray[];
-   int hsar = iSAR(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, 0.02, 0.2);
-   ArraySetAsSeries(SARArray, true);
-   CopyBuffer(hsar, 0, start, count, SARArray);
-   for(int i = 0; i < n; ++i)
-     {
-      RateData dst;
-      dst.Index = i;
-      dst.Market = chart.Market;
-      dst.TimeFrame = chart.TimeFrame;
-      dst.Time = (int)rates[i].time;
-      dst.Open = rates[i].open;
-      dst.Close = rates[i].close;
-      dst.High = rates[i].high;
-      dst.Low = rates[i].low;
-      dst.Volume = rates[i].tick_volume;
-      dst.ParabolicSar = SARArray[i];
-      uchar b[];
-      StructToCharArray(dst, b);
-      ArrayInsert(bytes, b, ArraySize(bytes));
-     }
   }
 //+------------------------------------------------------------------+
 int CalendarValueHistoryByCountry(string country, datetime from, datetime to, MqlCalendarValue &values[]) export
@@ -117,21 +88,46 @@ void CopyCalendarValueData(MqlCalendarValue &value[], uchar &bytes[])
      }
   }
 //+------------------------------------------------------------------+
-int SendChartData(Chart &chart, datetime from, datetime to) export
+void CalendarUpdate(datetime from, datetime to) export
   {
-   int st = iBarShift(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, to);
-   int en = iBarShift(SymbolName(chart.Market, true), (ENUM_TIMEFRAMES)chart.TimeFrame, from);
-   return SendChartData(chart, st, en - st);
+   uchar vd[];
+   MqlCalendarValue values[];
+   CalendarValueHistoryByCountry("US", from, to, values);
+   CalendarValueHistoryByCountry("EU", from, to, values);
+   CalendarValueHistoryByCountry("GB", from, to, values);
+   CalendarValueHistoryByCountry("JP", from, to, values);
+   CopyCalendarValueData(values, vd);
+   Vorn::Commands::CreateClient();
+   Vorn::Commands::CalendarUpdate(vd);
+   Vorn::Commands::DeleteClient();
   }
 //+------------------------------------------------------------------+
-int SendChartData(Chart &chart, int start, int cnt) export
+void CopyRateData(int market, int timeframe, int start, int count, uchar &bytes[]) export
   {
-   int count = cnt + 200;
-   uchar rd[];
-   CopyRateData(chart, start, count, rd);
-   uchar mdb[];
-   int key = Vorn::Commands::SendChartData(rd);
-   return key;
+   MqlRates rates[];
+   ArraySetAsSeries(rates, true);
+   int n = CopyRates(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframe, start, count, rates);
+   double SARArray[];
+   int hsar = iSAR(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframe, 0.02, 0.2);
+   ArraySetAsSeries(SARArray, true);
+   CopyBuffer(hsar, 0, start, count, SARArray);
+   for(int i = 0; i < n; ++i)
+     {
+      RateData dst;
+      dst.Index = i;
+      dst.Market = market;
+      dst.TimeFrame = timeframe;
+      dst.Time = (int)rates[i].time;
+      dst.Open = rates[i].open;
+      dst.Close = rates[i].close;
+      dst.High = rates[i].high;
+      dst.Low = rates[i].low;
+      dst.Volume = rates[i].tick_volume;
+      dst.ParabolicSar = SARArray[i];
+      uchar b[];
+      StructToCharArray(dst, b);
+      ArrayInsert(bytes, b, ArraySize(bytes));
+     }
   }
 //+------------------------------------------------------------------+
 void ReadPointData(int key,  PointData &md[]) export
@@ -148,61 +144,21 @@ void ReadPointData(int key,  PointData &md[]) export
 
   }
 //+------------------------------------------------------------------+
-void CalendarUpdate(datetime from, datetime to) export
-  {
-   uchar vd[];
-   MqlCalendarValue values[];
-   CalendarValueHistoryByCountry("US", from, to, values);
-   CalendarValueHistoryByCountry("EU", from, to, values);
-   CalendarValueHistoryByCountry("GB", from, to, values);
-   CalendarValueHistoryByCountry("JP", from, to, values);
-   CopyCalendarValueData(values, vd);
-   Vorn::Commands::CreateClient();
-   Vorn::Commands::CalendarUpdate(vd);
-   Vorn::Commands::DeleteClient();
-  }
-//+------------------------------------------------------------------+
-bool CopyMarketData(int market, int & timeframes[], int start, int count, uchar & bytes[])
+bool CopyMarketData(int market, int & timeframes[], datetime from, int count, uchar & bytes[])
   {
    for(int tf = 0; tf < ArraySize(timeframes); tf++)
      {
-      MqlRates rates[];
-      ArraySetAsSeries(rates, true);
-      int n = CopyRates(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframes[tf], start, count, rates);
-      if(n != count)
-         return false;
-      double SARArray[];
-      int hsar = iSAR(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframes[tf], 0.02, 0.2);
-      ArraySetAsSeries(SARArray, true);
-      int sarcnt = CopyBuffer(hsar, 0, start, count, SARArray);
-      if(sarcnt != count)
-         return false;
-      for(int i = 0; i < n; ++i)
-        {
-         RateData dst;
-         dst.Index = i;
-         dst.Market = market;
-         dst.TimeFrame = timeframes[tf];
-         dst.Time = (int)rates[i].time;
-         dst.Open = rates[i].open;
-         dst.Close = rates[i].close;
-         dst.High = rates[i].high;
-         dst.Low = rates[i].low;
-         dst.Volume = rates[i].tick_volume;
-         dst.ParabolicSar = SARArray[i];
-         uchar b[];
-         StructToCharArray(dst, b);
-         ArrayInsert(bytes, b, ArraySize(bytes));
-        }
+      int start = iBarShift(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframes[tf], from);
+      CopyRateData(market, timeframes[tf], start, count, bytes);
      }
    return true;
   }
 //+------------------------------------------------------------------+
-int SendMarketData(int market, int & timeframes[], int start, int count) export
+int SendMarketData(int market, int & timeframes[], datetime from, int count) export
   {
    int cnt = count + 200;
    uchar rd[];
-   CopyMarketData(market, timeframes, start, cnt, rd);
+   CopyMarketData(market, timeframes, from, cnt, rd);
    uchar mdb[];
    int key = Vorn::Commands::SendMarketData(rd, cnt);
    return key;

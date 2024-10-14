@@ -78,7 +78,6 @@ void AddShape(int window, string name, double level, datetime time, uchar code, 
    ObjectSetInteger(0, name, OBJPROP_WIDTH, size);
    ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
    ObjectSetInteger(0, name, OBJPROP_BACK, true);
-   ChartRedraw(0);
   }
 //+------------------------------------------------------------------+
 void DrawTrendline(string name, datetime time1, double price1, datetime time2, double price2,  color clr, long width = 0, bool rayRight = false, bool rayLeft = false, ENUM_LINE_STYLE style = STYLE_DOT) export

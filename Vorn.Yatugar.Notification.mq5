@@ -13,7 +13,7 @@
 #import "Vorn.Yatugar.ex5"
 bool InitializeYatugar();
 bool DeinitializeYatugar();
-int SendMarketData(int market, int & timeframes[], int start, int count);
+int SendMarketData(int market, int & timeframes[], datetime From, int count);
 void ReadPointData(int key,  PointData &md[]);
 bool FindPointData(PointData & pds[], PointData & pd, int id = NULL, ulong state = NULL);
 #import
@@ -26,7 +26,7 @@ int OnInit()
   {
    InitializeYatugar();
    Print(Search());
-   EventSetTimer(2 * 60);
+   EventSetTimer(5 * 60);
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -45,23 +45,24 @@ void OnTimer()
 //+------------------------------------------------------------------+
 string Search(int key)
   {
+   int timeframes[] = {PERIOD_D1, PERIOD_H4, PERIOD_M30};
    PointData pd[];
    string report = "";
    ReadPointData(key, pd);
-   report += HasSignalB1(pd);
-   report += HasSignalB2(pd);
-   report += HasLeftTarget(pd);
-   report += HasMacdSignChange(pd);
+   report += StateReport(pd, StateValues::SignalB1(), timeframes, " HasSignalB1 ");
+   report += StateReport(pd, StateValues::SignalB2(), timeframes, " HasSignalB2 ");
+   report += StateReport(pd, StateValues::LeftTarget(), timeframes, " HasLeftTarget ");
+   report += StateReport(pd, StateValues::MtfSignal(), timeframes, " HasMtfSignal ");
    return report;
   }
 //+------------------------------------------------------------------+
 string Search()
   {
    string report = "";
-   int timeframes[] = {PERIOD_H4, PERIOD_M30};
+   int timeframes[] = {PERIOD_D1, PERIOD_H4, PERIOD_M30, PERIOD_M5};
    for(int i = 0; i < Vorn::Commands::MarketCount(); i++)
      {
-      int k = SendMarketData(i, timeframes, 0, Candles);
+      int k = SendMarketData(i, timeframes, TimeCurrent(), Candles);
       Vorn::Commands::AddKey(i, k);
      }
    for(int i = 0; i < Vorn::Commands::MarketCount(); i++)
@@ -72,52 +73,16 @@ string Search()
    return report;
   }
 //+------------------------------------------------------------------+
-string HasSignalB1(PointData & pd[])
+string StateReport(PointData & pd[], ulong state, int & timeframes[], string message)
   {
    for(int i = 0; i < ArraySize(pd); i++)
      {
       if(pd[i].Index > 2)
          continue;
-      if((pd[i].States & StateValues::SignalB1()) > 0)
-         return SymbolName(pd[i].Market, true) + " Has SignalB1 in " + (string)pd[i].TimeFrame + "\t\n";
-     }
-   return "";
-  }
-//+------------------------------------------------------------------+
-string HasSignalB2(PointData & pd[])
-  {
-   for(int i = 0; i < ArraySize(pd); i++)
-     {
-      if(pd[i].Index > 2)
+      if(Vorn::Array::IndexOf(timeframes, pd[i].TimeFrame) < 0)
          continue;
-      if((pd[i].States & StateValues::SignalB2()) > 0)
-         return SymbolName(pd[i].Market, true) + " Has SignalB2 in " + (string)pd[i].TimeFrame + "\t\n";
-     }
-   return "";
-  }
-//+------------------------------------------------------------------+
-string HasLeftTarget(PointData & pd[])
-  {
-   for(int i = 0; i < ArraySize(pd); i++)
-     {
-      if(pd[i].Index > 2)
-         continue;
-      if((pd[i].States & StateValues::LeftTarget()) > 0)
-         return SymbolName(pd[i].Market, true) + " Has LeftTarget in " + (string)pd[i].TimeFrame + "\t\n";
-     }
-   return "";
-  }
-//+------------------------------------------------------------------+
-string HasMacdSignChange(PointData & pd[])
-  {
-   for(int i = 0; i < ArraySize(pd); i++)
-     {
-      if(pd[i].Index > 2)
-         continue;
-      if((pd[i].States & StateValues::PositiveMacdSignChange()) > 0)
-         return SymbolName(pd[i].Market, true) + " Has PositiveMacdSignChange in " + (string)pd[i].TimeFrame + "\t\n";
-      if((pd[i].States & StateValues::NegativeMacdSignChange()) > 0)
-         return SymbolName(pd[i].Market, true) + " Has NegativeMacdSignChange in " + (string)pd[i].TimeFrame + "\t\n";
+      if((pd[i].States & state) > 0)
+         return SymbolName(pd[i].Market, true) + message + (string)pd[i].TimeFrame + "\t\n";
      }
    return "";
   }

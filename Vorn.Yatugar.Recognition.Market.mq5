@@ -11,9 +11,10 @@
 //+------------------------------------------------------------------+
 #import "Vorn.Yatugar.ex5"
 bool InitializeYatugar();
-int SendMarketData(int market, int & timeframes[], int start, int count);
-int SendChartData(Chart &chart, int start, int cnt);
+int SendMarketData(int market, int & timeframes[], datetime From, int count);
 void ReadPointData(int key,  PointData &md[]);
+string PointDataName(PointData &pd);
+bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0);
 bool DeinitializeYatugar();
 #import
 //+------------------------------------------------------------------+
@@ -30,23 +31,27 @@ void DrawButton(string name, string text, int x, int y, int width, int height, c
 #import
 //+------------------------------------------------------------------+
 sinput int Candles = 1000;
+sinput datetime From = NULL;
 input group           "Colors"
+sinput color W1Positive = C'34, 49, 59';
 sinput color D1Positive = C'54, 69, 79';
 sinput color H4Positive = C'10, 117, 143';
 sinput color M30Positive = C'0,255,240';
+sinput color M5Positive = clrGreenYellow;
+sinput color M1Positive = C'162,240,162';
+sinput color W1Negative = C'90, 0, 0';
 sinput color D1Negative = C'128, 0, 0';
 sinput color H4Negative = C'219,22,47';
 sinput color M30Negative = C'199, 91, 122';
+sinput color M5Negative = clrMediumVioletRed;
+sinput color M1Negative = C'255,166,215';
+sinput color W1Warning = C'119,15,15';
 sinput color D1Warning = C'139,35,35';
 sinput color H4Warning = C'235, 91, 0';
 sinput color M30Warning = C'255, 178, 0';
-sinput color H4Fundamental = C'244, 206, 20';
-sinput color M5Positive = clrGreenYellow;
-sinput color M5Negative = clrMediumVioletRed;
 sinput color M5Warning = C'243,238,194';
-sinput color M1Positive = C'162,240,162';
-sinput color M1Negative = C'255,166,215';
 sinput color M1Warning = C'249,245,221';
+sinput color H4Fundamental = C'244, 206, 20';
 input group           "Display"
 sinput bool Master = true; // Master Fibonacci Retracement
 sinput bool Switch = true; // Switch Fibonacci Retracement
@@ -54,6 +59,10 @@ sinput bool ExtremeAreas = true; //Extreme Areas
 sinput bool Fundamental = true; //Fundamental Events
 sinput bool Signals = true; //Signals
 sinput bool LeftTargets = true; //LeftTargets
+input group           "W1 "
+sinput bool W1 = false; // W1 Enabled
+sinput int W1Size = 6; // W1 Icon Size
+sinput int W1Offset = 6; // W1 Icon Size
 input group           "D1 "
 sinput bool D1 = true; // D1 Enabled
 sinput int D1Size = 5; // D1 Icon Size
@@ -114,14 +123,24 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Color = pcolor;
       pd.Icon = 236;
       pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.Low - (pd.High - pd.Low));
+      DrawPointData(pd, pd.Low - 2 * (pd.High - pd.Low));
      }
    if((pd.States & StateValues::SignalB2()) > 0 && Signals)
      {
       pd.Color = ncolor;
       pd.Icon = 238;
       pd.Anchor = ANCHOR_BOTTOM;
-      DrawPointData(pd, pd.High + (pd.High - pd.Low));
+      DrawPointData(pd, pd.High + 2 * (pd.High - pd.Low));
+     }
+   if((pd.States & StateValues::MtfSignalB1()) > 0 && Signals)
+     {
+      pd.Color = pcolor;
+      DrawVerticalLine(PointDataName(pd), pd.Time, pd.Color);
+     }
+   if((pd.States & StateValues::MtfSignalB2()) > 0 && Signals)
+     {
+      pd.Color = ncolor;
+      DrawVerticalLine(PointDataName(pd), pd.Time, pd.Color);
      }
    if((pd.States & StateValues::EquilibriumExtreme()) > 0 && ExtremeAreas)
      {
@@ -187,6 +206,7 @@ void  DrawButtons()
    x = 10;
    y += (h + g);
    DrawButton("Clear", "Clear", x, y, ww, h, clr);
+   ChartRedraw();
   }
 //+------------------------------------------------------------------+
 int OnInit()
@@ -196,6 +216,8 @@ int OnInit()
    if(!InitializeYatugar())
       return(INIT_FAILED);
    int market = Vorn::Commands::GetMarket(_Symbol);
+   if(D1)
+      Vorn::Commands::AddTimeFrame(PERIOD_W1, "W1");
    if(D1)
       Vorn::Commands::AddTimeFrame(PERIOD_D1, "D1");
    if(H4)
@@ -207,9 +229,16 @@ int OnInit()
    if(M1)
       Vorn::Commands::AddTimeFrame(PERIOD_M1, "M1");
    Vorn::Commands::GetTimeFrames(timeframes);
-   ReadPointData(SendMarketData(market, timeframes, 0, Candles), pointData);
+   if(From == NULL)
+      ReadPointData(SendMarketData(market, timeframes, TimeCurrent(), Candles), pointData);
+   else
+      ReadPointData(SendMarketData(market, timeframes, From, Candles), pointData);
    for(int p = 0; p < ArraySize(pointData); p++)
      {
+      if(pointData[p].TimeFrame == PERIOD_W1)
+        {
+         DrawPointData(pointData[p], W1Positive, W1Negative, W1Warning, W1Size, W1Offset);
+        }
       if(pointData[p].TimeFrame == PERIOD_D1)
         {
          DrawPointData(pointData[p], D1Positive, D1Negative, D1Warning, D1Size, D1Offset);
@@ -232,33 +261,14 @@ int OnInit()
         }
      }
    DrawButtons();
+   ChartRedraw();
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason)
   {
    DeinitializeYatugar();
-  }
-//+------------------------------------------------------------------+
-string PointDataName(PointData &pd)
-  {
-   string name = StringFormat("+%I64uS%dT%d", pd.States, pd.Id, pd.TimeFrame);
-   return name;
-  }
-//+------------------------------------------------------------------+
-bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0)
-  {
-   for(int i = startIndex; i < ArraySize(pds); i++)
-     {
-      if(pds[i].TimeFrame == timeframe)
-         if(id != NULL ? pds[i].Id == id : true)
-            if(state != NULL ? (pds[i].States & state) > 0 : true)
-              {
-               pd = pds[i];
-               return true;
-              }
-     }
-   return false;
+   ClearButtons();
   }
 //+------------------------------------------------------------------+
 void OnChartEvent(const int id,
@@ -552,11 +562,7 @@ void ClearButtons()
   {
    for(int a = 0; a < ArraySize(actions); a++)
      {
-      ObjectDelete(0, actions[a]);
-      for(int t = 0, x = 10; t < ArraySize(timeframes); t++)
-        {
-         ObjectDelete(0, actions[a] + (string)timeframes[t]);
-        }
+      ObjectsDeleteAll(0, actions[a]);
      }
    ObjectDelete(0, "Clear");
    ObjectDelete(0, "Remove");
