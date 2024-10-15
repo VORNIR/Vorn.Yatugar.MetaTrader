@@ -230,7 +230,7 @@ int OnInit()
    if(!InitializeYatugar())
       return(INIT_FAILED);
    int market = Vorn::Commands::GetMarket(_Symbol);
-   if(D1)
+   if(W1)
       Vorn::Commands::AddTimeFrame(PERIOD_W1, "W1");
    if(D1)
       Vorn::Commands::AddTimeFrame(PERIOD_D1, "D1");
