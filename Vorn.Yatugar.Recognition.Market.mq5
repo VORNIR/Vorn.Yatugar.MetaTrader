@@ -162,7 +162,7 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Color = wcolor;
       pd.Icon = 159;
       pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.Low);
+      DrawPointData(pd, pd.AreaHigh);
      }
    if((pd.States & StateValues::LeftPositiveTarget()) > 0 && LeftTargets)
      {
@@ -549,13 +549,27 @@ void ToggleLeftTarget(PointData & pd)
    if((pd.States & StateValues::LeftTarget()) == 0)
       return;
    string name = "-LT" + PointDataName(pd);
-   if(ObjectFind(0, name) < 0)
+   string vertical = "-V" + name;
+   string horizontal = "-H" + name;
+   if(ObjectFind(0, vertical) < 0)
      {
-      DrawVerticalLine(name, pd.Time, pd.Color);
+      DrawTrendline(vertical,
+                    pd.AreaLowTime,
+                    pd.AreaLow,
+                    pd.AreaLowTime,
+                    pd.AreaHigh,
+                    (color)pd.Color);
+      DrawTrendline(horizontal,
+                    pd.AreaHighTime,
+                    pd.AreaHigh,
+                    pd.AreaLowTime,
+                    pd.AreaHigh,
+                    (color)pd.Color);
      }
    else
      {
-      ObjectDelete(0, name);
+      ObjectDelete(0, vertical);
+      ObjectDelete(0, horizontal);
      }
    ChartRedraw();
   }
