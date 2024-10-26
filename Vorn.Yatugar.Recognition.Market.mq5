@@ -59,6 +59,7 @@ sinput bool ExtremeAreas = true; //Extreme Areas
 sinput bool Fundamental = true; //Fundamental Events
 sinput bool Signals = true; //Signals
 sinput bool LeftTargets = true; //LeftTargets
+sinput bool AdxCrossing = true; //AdxCross
 input group           "W1 "
 sinput bool W1 = false; // W1 Enabled
 sinput int W1Size = 6; // W1 Icon Size
@@ -85,8 +86,9 @@ sinput int M1Size = 1; // M1 Icon Size
 sinput int M1Offset = 1; // M1 Icon Size
 //+------------------------------------------------------------------+
 PointData pointData[];
+PointData economicData[];
 int timeframes[] = {};
-string actions[] = {"F", "U", "X", "LT"};
+string actions[] = {"F", "U", "X", "LT", "AC"};
 //+------------------------------------------------------------------+
 void DrawPointData(PointData & pd, double position)
   {
@@ -132,29 +134,19 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Anchor = ANCHOR_BOTTOM;
       DrawPointData(pd, pd.High);
      }
-   if((pd.States & StateValues::SignalB1()) > 0 && Signals)
+   if((pd.States & (StateValues::SignalB1() | StateValues::SignalA1())) > 0 && Signals)
      {
       pd.Color = pcolor;
       pd.Icon = 236;
       pd.Anchor = ANCHOR_TOP;
       DrawPointData(pd, pd.Low - 2 * (pd.High - pd.Low));
      }
-   if((pd.States & StateValues::SignalB2()) > 0 && Signals)
+   if((pd.States & (StateValues::SignalB2() | StateValues::SignalA2())) > 0 && Signals)
      {
       pd.Color = ncolor;
       pd.Icon = 238;
       pd.Anchor = ANCHOR_BOTTOM;
       DrawPointData(pd, pd.High + 2 * (pd.High - pd.Low));
-     }
-   if((pd.States & StateValues::MtfSignalB1()) > 0 && Signals)
-     {
-      pd.Color = pcolor;
-      DrawVerticalLine(PointDataName(pd), pd.Time, pd.Color);
-     }
-   if((pd.States & StateValues::MtfSignalB2()) > 0 && Signals)
-     {
-      pd.Color = ncolor;
-      DrawVerticalLine(PointDataName(pd), pd.Time, pd.Color);
      }
    if((pd.States & StateValues::EquilibriumExtreme()) > 0 && ExtremeAreas)
      {
@@ -171,6 +163,18 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
    if((pd.States & StateValues::LeftNegativeTarget()) > 0 && LeftTargets)
      {
       pd.Color = pcolor;
+     }
+   if((pd.States & StateValues::PositiveAdxCross()) > 0 && AdxCrossing)
+     {
+      pd.Color = pcolor;
+     }
+   if((pd.States & StateValues::NegativeAdxCross()) > 0 && AdxCrossing)
+     {
+      pd.Color = ncolor;
+     }
+   if((pd.States & (StateValues::PositiveSignalAdxCross() | StateValues::NegativeSignalAdxCross())) > 0 && AdxCrossing)
+     {
+      pd.Color = wcolor;
      }
    if((pd.States & StateValues::MacdResonance()) > 0)
      {
@@ -229,6 +233,9 @@ int OnInit()
    ClearIcons();
    if(!InitializeYatugar())
       return(INIT_FAILED);
+   ReadPointData(Vorn::Commands::GetEconomicData(_Symbol), economicData);
+   for(int p = 0; p < ArraySize(economicData); p++)
+      DrawVerticalLine(StringFormat("+E%d", p), economicData[p].Time, H4Fundamental);
    int market = Vorn::Commands::GetMarket(_Symbol);
    if(W1)
       Vorn::Commands::AddTimeFrame(PERIOD_W1, "W1");
@@ -363,6 +370,25 @@ void OnChartEvent(const int id,
            {
             if(pointData[i].TimeFrame == tf)
                ToggleLeftTarget(pointData[i]);
+           }
+         return;
+        }
+   if(name == "AC")
+     {
+      for(int i = 0; i < ArraySize(pointData); i++)
+        {
+         ToggleAdxCross(pointData[i]);
+        }
+      return;
+     }
+   else
+      if(StringSubstr(name, 0, 2) == "AC")
+        {
+         int tf = (int)StringSubstr(name, 2);
+         for(int i = 0; i < ArraySize(pointData); i++)
+           {
+            if(pointData[i].TimeFrame == tf)
+               ToggleAdxCross(pointData[i]);
            }
          return;
         }
@@ -550,26 +576,34 @@ void ToggleLeftTarget(PointData & pd)
       return;
    string name = "-LT" + PointDataName(pd);
    string vertical = "-V" + name;
-   string horizontal = "-H" + name;
    if(ObjectFind(0, vertical) < 0)
      {
-      DrawTrendline(vertical,
-                    pd.AreaLowTime,
-                    pd.AreaLow,
-                    pd.AreaLowTime,
-                    pd.AreaHigh,
-                    (color)pd.Color);
-      DrawTrendline(horizontal,
-                    pd.AreaHighTime,
-                    pd.AreaHigh,
-                    pd.AreaLowTime,
-                    pd.AreaHigh,
-                    (color)pd.Color);
+      DrawVerticalLine(vertical,
+                       pd.Time,
+                       (color)pd.Color);
      }
    else
      {
       ObjectDelete(0, vertical);
-      ObjectDelete(0, horizontal);
+     }
+   ChartRedraw();
+  }
+//+------------------------------------------------------------------+
+void ToggleAdxCross(PointData & pd)
+  {
+   if((pd.States & StateValues::AdxCross()) == 0)
+      return;
+   string name = "-AC" + PointDataName(pd);
+   string vertical = "-V" + name;
+   if(ObjectFind(0, vertical) < 0)
+     {
+      DrawVerticalLine(vertical,
+                       pd.Time,
+                       (color)pd.Color);
+     }
+   else
+     {
+      ObjectDelete(0, vertical);
      }
    ChartRedraw();
   }

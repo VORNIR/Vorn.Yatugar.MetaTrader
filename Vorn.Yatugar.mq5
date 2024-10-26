@@ -104,18 +104,34 @@ void CalendarUpdate(datetime from, datetime to) export
 //+------------------------------------------------------------------+
 void CopyRateData(int market, int timeframe, int start, int count, uchar &bytes[]) export
   {
+   string sym = SymbolName(market, true);
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
-   int n = CopyRates(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframe, start, count, rates);
+   int n = CopyRates(sym, (ENUM_TIMEFRAMES)timeframe, start, count, rates);
    double SARArray[];
-   int hsar = iSAR(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframe, 0.02, 0.2);
+   int hsar = iSAR(sym, (ENUM_TIMEFRAMES)timeframe, 0.02, 0.2);
    ArraySetAsSeries(SARArray, true);
    CopyBuffer(hsar, 0, start, count, SARArray);
+   ulong ulong_var = 0;
+   for(int i = 0; i < StringLen(sym); i++)
+     {
+      ulong_var <<= 8; // Shift left by 8 bits (1 byte)
+      ulong_var |= uchar(sym[i]); // Add the character byte
+     }
+   double pv = CalculatePriceVolatility(rates);
    for(int i = 0; i < n; ++i)
      {
+      double price = rates[i].high;
+      double priceChange = price * 0.01;
+      double pointValue = SymbolInfoDouble(sym, SYMBOL_POINT);
+      double pointsChanged = priceChange / pointValue;
+      double tickValue = SymbolInfoDouble(sym, SYMBOL_TRADE_TICK_VALUE);
+      double monetaryValue = pointsChanged * tickValue;
       RateData dst;
       dst.Index = i;
+      dst.MarketName = ulong_var;
       dst.Market = market;
+      dst.Volatility = pv * monetaryValue;
       dst.TimeFrame = timeframe;
       dst.Time = (int)rates[i].time;
       dst.Open = rates[i].open;
@@ -142,6 +158,21 @@ void ReadPointData(int key,  PointData &md[]) export
       CharArrayToStruct(md[i], mdb, i * sizeof(PointData));
      }
 
+  }
+//+------------------------------------------------------------------+
+double CalculatePriceVolatility(MqlRates & rates[])
+  {
+   double sum = 0.0;
+   double sumSquared = 0.0;
+   for(int i = 0; i < ArraySize(rates); i++)
+     {
+      double rangeHighLow = (rates[i].high - rates[i].low) / rates[i].high;
+      sum += rangeHighLow;
+      sumSquared += rangeHighLow * rangeHighLow;
+     }
+   double mean = sum / ArraySize(rates);
+   double variance = (sumSquared / ArraySize(rates)) - (mean * mean);
+   return MathSqrt(variance);
   }
 //+------------------------------------------------------------------+
 bool CopyMarketData(int market, int & timeframes[], datetime from, int count, uchar & bytes[])
