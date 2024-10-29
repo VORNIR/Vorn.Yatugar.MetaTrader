@@ -30,7 +30,7 @@ void ClearChart();
 void DrawButton(string name, string text, int x, int y, int width, int height, color clr, color textclr = clrWhite);
 #import
 //+------------------------------------------------------------------+
-sinput int Candles = 1000;
+sinput int Candles = 500;
 sinput datetime From = NULL;
 input group           "Colors"
 sinput color W1Positive = C'34, 49, 59';

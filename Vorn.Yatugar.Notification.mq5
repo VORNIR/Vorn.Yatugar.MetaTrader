@@ -51,8 +51,8 @@ string Search(int key)
    ReadPointData(key, pd);
    report += StateReport(pd, StateValues::SignalB1(), timeframes, " HasSignalB1 ");
    report += StateReport(pd, StateValues::SignalB2(), timeframes, " HasSignalB2 ");
-   report += StateReport(pd, StateValues::LeftTarget(), timeframes, " HasLeftTarget ");
-   report += StateReport(pd, StateValues::MtfSignal(), timeframes, " HasMtfSignal ");
+   report += StateReport(pd, StateValues::SignalA1(), timeframes, " HasSignalA1 ");
+   report += StateReport(pd, StateValues::SignalA2(), timeframes, " HasSignalA2 ");
    return report;
   }
 //+------------------------------------------------------------------+
