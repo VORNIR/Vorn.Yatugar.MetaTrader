@@ -13,9 +13,9 @@
 #import "Vorn.Yatugar.ex5"
 bool InitializeYatugar();
 bool DeinitializeYatugar();
-int SendMarketData(int market, int & timeframes[], datetime From, int count);
+int SendMarketData(string sym, int & timeframes[], datetime From, int count);
 void ReadPointData(int key,  PointData &md[]);
-bool FindPointData(PointData & pds[], PointData & pd, int id = NULL, ulong state = NULL);
+string UlongToString(ulong ulongVar);
 #import
 //+------------------------------------------------------------------+
 sinput int Candles = 500;
@@ -24,9 +24,12 @@ string previous = "";
 //+------------------------------------------------------------------+
 int OnInit()
   {
-   InitializeYatugar();
-   Print(Search());
-   EventSetTimer(5 * 60);
+   if(!InitializeYatugar())
+      return(INIT_FAILED);
+   previous = Search();
+   Print(previous);
+   EventSetTimer(10 * 60);
+//ExpertRemove();
    return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
@@ -43,46 +46,51 @@ void OnTimer()
    previous = report;
   }
 //+------------------------------------------------------------------+
-string Search(int key)
-  {
-   int timeframes[] = {PERIOD_D1, PERIOD_H4, PERIOD_M30};
-   PointData pd[];
-   string report = "";
-   ReadPointData(key, pd);
-   report += StateReport(pd, StateValues::SignalB1(), timeframes, " HasSignalB1 ");
-   report += StateReport(pd, StateValues::SignalB2(), timeframes, " HasSignalB2 ");
-   report += StateReport(pd, StateValues::SignalA1(), timeframes, " HasSignalA1 ");
-   report += StateReport(pd, StateValues::SignalA2(), timeframes, " HasSignalA2 ");
-   return report;
-  }
-//+------------------------------------------------------------------+
 string Search()
   {
    string report = "";
-   int timeframes[] = {PERIOD_D1, PERIOD_H4, PERIOD_M30, PERIOD_M5};
-   for(int i = 0; i < Vorn::Commands::MarketCount(); i++)
+   int timeframes[] = {PERIOD_H4, PERIOD_M30, PERIOD_M5};
+   for(int i = 0; i < SymbolsTotal(false); i++)
      {
-      int k = SendMarketData(i, timeframes, TimeCurrent(), Candles);
+      if(StringLen(SymbolName(i, false)) < 6)
+         continue;
+      int k = SendMarketData(SymbolName(i, false), timeframes, TimeCurrent(), Candles);
       Vorn::Commands::AddKey(i, k);
      }
-   for(int i = 0; i < Vorn::Commands::MarketCount(); i++)
+   for(int i = 0; i < SymbolsTotal(false); i++)
      {
+      if(StringLen(SymbolName(i, false)) < 6)
+         continue;
       int k = Vorn::Commands::GetKey(i);
-      report += Search(k);
+      report += Search(k, timeframes);
      }
    return report;
   }
 //+------------------------------------------------------------------+
-string StateReport(PointData & pd[], ulong state, int & timeframes[], string message)
+string Search(int key, int & timeframes[])
   {
+   PointData pd[] = {};
+   string report = "";
+   ReadPointData(key, pd);
+   report += StateReport(pd, StateValues::SignalBb1(), timeframes, " HasSignalBb1 ");
+   report += StateReport(pd, StateValues::SignalBb2(), timeframes, " HasSignalBb2 ");
+   report += StateReport(pd, StateValues::SignalU(), timeframes, " HasSignalU ");
+   return report;
+  }
+//+------------------------------------------------------------------+
+string StateReport(PointData & pd[], ulong state, int & timeframes[], string message, int indexLimit = 1)
+  {
+   if(ArraySize(pd) == 0)
+      return "";
+   string sym = UlongToString(pd[0].MarketName);
    for(int i = 0; i < ArraySize(pd); i++)
      {
-      if(pd[i].Index > 2)
+      if(pd[i].Index > indexLimit)
          continue;
       if(Vorn::Array::IndexOf(timeframes, pd[i].TimeFrame) < 0)
          continue;
       if((pd[i].States & state) > 0)
-         return SymbolName(pd[i].Market, true) + message + (string)pd[i].TimeFrame + "\t\n";
+         return sym + message + (string)pd[i].TimeFrame + "\t\n";
      }
    return "";
   }

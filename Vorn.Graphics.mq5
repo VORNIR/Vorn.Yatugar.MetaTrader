@@ -149,3 +149,13 @@ void DrawButton(string name, string text, int x, int y, int width, int height, c
    ObjectSetString(0, name, OBJPROP_TEXT, text);
   }
 //+------------------------------------------------------------------+
+void DrawText(string name, string text, datetime time, double price, int size = 5, color textclr = clrWhite) export
+  {
+   ObjectCreate(0, name, OBJ_TEXT, 0, time, price);
+   ObjectSetString(0, name, OBJPROP_TEXT, text);
+   ObjectSetString(0, name, OBJPROP_FONT, "Segoe UI Semilight");
+   ObjectSetInteger(0, name, OBJPROP_COLOR, textclr);
+   ObjectSetInteger(0, name, OBJPROP_FONTSIZE, size);
+   ObjectSetInteger(0, name, OBJPROP_SELECTABLE, true);
+  }
+//+------------------------------------------------------------------+

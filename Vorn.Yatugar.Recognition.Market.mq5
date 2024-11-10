@@ -11,8 +11,8 @@
 //+------------------------------------------------------------------+
 #import "Vorn.Yatugar.ex5"
 bool InitializeYatugar();
-int SendMarketData(int market, int & timeframes[], datetime From, int count);
-void ReadPointData(int key,  PointData &md[]);
+int SendMarketData(string sym, int & timeframes[], datetime From, int count);
+bool ReadPointData(int key,  PointData &md[]);
 string PointDataName(PointData &pd);
 bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0);
 bool DeinitializeYatugar();
@@ -28,9 +28,10 @@ void ChangeShape(string name, uchar code);
 void DrawRectangle(const string name, datetime time1, double price1, datetime time2, double price2, const color clr = clrAqua, const int width = 0, const bool fill = false, const bool back = false, const ENUM_LINE_STYLE style = STYLE_SOLID, const long z_order = 1);
 void ClearChart();
 void DrawButton(string name, string text, int x, int y, int width, int height, color clr, color textclr = clrWhite);
+void DrawText(string name, string text, datetime time, double price, int size = 5, color textclr = clrWhite);
 #import
 //+------------------------------------------------------------------+
-sinput int Candles = 500;
+sinput int Candles = 1000;
 sinput datetime From = NULL;
 input group           "Colors"
 sinput color W1Positive = C'34, 49, 59';
@@ -58,8 +59,6 @@ sinput bool Switch = true; // Switch Fibonacci Retracement
 sinput bool ExtremeAreas = true; //Extreme Areas
 sinput bool Fundamental = true; //Fundamental Events
 sinput bool Signals = true; //Signals
-sinput bool LeftTargets = true; //LeftTargets
-sinput bool AdxCrossing = true; //AdxCross
 input group           "W1 "
 sinput bool W1 = false; // W1 Enabled
 sinput int W1Size = 6; // W1 Icon Size
@@ -77,18 +76,18 @@ sinput bool M30 = true; // M30 Enabled
 sinput int M30Size = 3; // M30 Icon Size
 sinput int M30Offset = 3; // M30 Icon Size
 input group           "M5"
-sinput bool M5 = true; // M5 Enabled
+sinput bool M5 = false; // M5 Enabled
 sinput int M5Size = 2; // M5 Icon Size
 sinput int M5Offset = 2; // M5 Icon Size
 input group           "M1"
-sinput bool M1 = true; // M1 Enabled
+sinput bool M1 = false; // M1 Enabled
 sinput int M1Size = 1; // M1 Icon Size
 sinput int M1Offset = 1; // M1 Icon Size
 //+------------------------------------------------------------------+
 PointData pointData[];
 PointData economicData[];
 int timeframes[] = {};
-string actions[] = {"F", "U", "X", "LT", "AC"};
+string actions[] = {"F", "U", "X", "T", "M"};
 //+------------------------------------------------------------------+
 void DrawPointData(PointData & pd, double position)
   {
@@ -106,75 +105,122 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
   {
    pd.Size = size;
    pd.Offset = offset;
-   if((pd.States & StateValues::PositiveMaster()) > 0 && Master)
+   if((pd.States & StateValues::PositiveMaster()) > 0)
      {
       pd.Color = pcolor;
       pd.Icon = 116;
       pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.F0);
+      if(Master)
+         DrawPointData(pd, pd.F0);
      }
-   if((pd.States & StateValues::NegativeMaster()) > 0 && Master)
+   if((pd.States & StateValues::NegativeMaster()) > 0)
      {
       pd.Color = ncolor;
       pd.Icon = 116;
       pd.Anchor = ANCHOR_BOTTOM;
-      DrawPointData(pd, pd.F0);
+      if(Master)
+         DrawPointData(pd, pd.F0);
      }
-   if((pd.States & StateValues::PositiveBaseSwitch()) > 0 && Switch)
+   if((pd.States & StateValues::PositiveBaseSwitch()) > 0)
      {
       pd.Color = pcolor;
       pd.Icon = 161;
       pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.Low);
+      if(Switch)
+         DrawPointData(pd, pd.Low);
      }
-   if((pd.States & StateValues::NegativeBaseSwitch()) > 0 && Switch)
+   if((pd.States & StateValues::NegativeBaseSwitch()) > 0)
      {
       pd.Color = ncolor;
       pd.Icon = 161;
       pd.Anchor = ANCHOR_BOTTOM;
-      DrawPointData(pd, pd.High);
+      if(Switch)
+         DrawPointData(pd, pd.High);
      }
-   if((pd.States & (StateValues::SignalB1() | StateValues::SignalA1())) > 0 && Signals)
+   if((pd.States & StateValues::SignalA1()) > 0)
      {
       pd.Color = pcolor;
-      pd.Icon = 236;
-      pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.Low - 2 * (pd.High - pd.Low));
+      DrawText(PointDataName(pd) + "L", "A1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
      }
-   if((pd.States & (StateValues::SignalB2() | StateValues::SignalA2())) > 0 && Signals)
+   if((pd.States & StateValues::SignalA2()) > 0)
      {
       pd.Color = ncolor;
-      pd.Icon = 238;
-      pd.Anchor = ANCHOR_BOTTOM;
-      DrawPointData(pd, pd.High + 2 * (pd.High - pd.Low));
+      DrawText(PointDataName(pd) + "L", "A2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
      }
-   if((pd.States & StateValues::EquilibriumExtreme()) > 0 && ExtremeAreas)
+//if((pd.States & StateValues::SignalBb1()) > 0)
+//  {
+//   pd.Color = pcolor;
+//   DrawText(PointDataName(pd) + "L", "Bb1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
+//  }
+//if((pd.States & StateValues::SignalBb2()) > 0)
+//  {
+//   pd.Color = ncolor;
+//   DrawText(PointDataName(pd) + "L", "Bb2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
+//  }
+   if((pd.States & StateValues::SignalB1()) > 0)
+     {
+      pd.Color = pcolor;
+      DrawText(PointDataName(pd) + "L", "B1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
+     }
+   if((pd.States & StateValues::SignalB2()) > 0)
+     {
+      pd.Color = ncolor;
+      DrawText(PointDataName(pd) + "L", "B2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
+     }
+//if((pd.States & StateValues::SignalP1()) > 0)
+//  {
+//   pd.Color = pcolor;
+//   DrawText(PointDataName(pd) + "LP1", "P1", pd.Time, pd.High + 4 * (pd.High - pd.Low), 7 + size, pd.Color);
+//  }
+//if((pd.States & StateValues::SignalP2()) > 0)
+//  {
+//   pd.Color = ncolor;
+//   DrawText(PointDataName(pd) + "LP2", "P2", pd.Time, pd.Low - 4 * (pd.High - pd.Low),  7 + size, pd.Color);
+//}
+//if((pd.States & StateValues::SignalO1()) > 0)
+//  {
+//   pd.Color = pcolor;
+//   DrawText(PointDataName(pd) + "L", "O1", pd.Time, pd.Low - 3 * (pd.High - pd.Low), 7 + size, pd.Color);
+//  }
+//if((pd.States & StateValues::SignalO2()) > 0)
+//  {
+//   pd.Color = ncolor;
+//   DrawText(PointDataName(pd) + "L", "O2", pd.Time, pd.High + 3 * (pd.High - pd.Low),  7 + size, pd.Color);
+//  }
+   if((pd.States & StateValues::SignalT1()) > 0)
+     {
+      pd.Color = wcolor;
+      double labelPrice = pd.Low - 4 * (pd.High - pd.Low);
+      DrawTrendline(PointDataName(pd) + "VT1", pd.Time, labelPrice, pd.Time, (pd.High + pd.Low) / 2, pd.Color);
+      DrawText(PointDataName(pd) + "LT1", "T1", pd.Time, labelPrice, 7 + size, pd.Color);
+     }
+   if((pd.States & StateValues::SignalT2()) > 0)
+     {
+      pd.Color = wcolor;
+      double labelPrice = pd.High + 4 * (pd.High - pd.Low);
+      DrawTrendline(PointDataName(pd) + "VT2", pd.Time, labelPrice, pd.Time, (pd.High + pd.Low) / 2, pd.Color);
+      DrawText(PointDataName(pd) + "LT2", "T2", pd.Time, labelPrice, 7 + size, pd.Color);
+     }
+   if((pd.States & StateValues::SignalU()) > 0)
+     {
+      pd.Color = wcolor;
+     }
+   if((pd.States & StateValues::MaPeak()) > 0)
+     {
+      pd.Color = ncolor;
+     }
+   if((pd.States & StateValues::MaTrough()) > 0)
+     {
+      pd.Color = pcolor;
+     }
+   if((pd.States & StateValues::EquilibriumExtreme()) > 0)
      {
       pd.Offset = 0;
       pd.Color = wcolor;
       pd.Icon = 159;
       pd.Anchor = ANCHOR_TOP;
-      DrawPointData(pd, pd.AreaHigh);
-     }
-   if((pd.States & StateValues::LeftPositiveTarget()) > 0 && LeftTargets)
-     {
-      pd.Color = ncolor;
-     }
-   if((pd.States & StateValues::LeftNegativeTarget()) > 0 && LeftTargets)
-     {
-      pd.Color = pcolor;
-     }
-   if((pd.States & StateValues::PositiveAdxCross()) > 0 && AdxCrossing)
-     {
-      pd.Color = pcolor;
-     }
-   if((pd.States & StateValues::NegativeAdxCross()) > 0 && AdxCrossing)
-     {
-      pd.Color = ncolor;
-     }
-   if((pd.States & (StateValues::PositiveSignalAdxCross() | StateValues::NegativeSignalAdxCross())) > 0 && AdxCrossing)
-     {
-      pd.Color = wcolor;
+      if(ExtremeAreas)
+         DrawPointData(pd, pd.AreaStart);
      }
    if((pd.States & StateValues::MacdResonance()) > 0)
      {
@@ -232,10 +278,11 @@ int OnInit()
    ClearObjects();
    ClearIcons();
    if(!InitializeYatugar())
+     {
+      DeinitializeYatugar();
       return(INIT_FAILED);
-   ReadPointData(Vorn::Commands::GetEconomicData(_Symbol), economicData);
-   for(int p = 0; p < ArraySize(economicData); p++)
-      DrawVerticalLine(StringFormat("+E%d", p), economicData[p].Time, H4Fundamental);
+     }
+//int edkey = Vorn::Commands::GetEconomicData(_Symbol);
    int market = Vorn::Commands::GetMarket(_Symbol);
    if(W1)
       Vorn::Commands::AddTimeFrame(PERIOD_W1, "W1");
@@ -250,10 +297,16 @@ int OnInit()
    if(M1)
       Vorn::Commands::AddTimeFrame(PERIOD_M1, "M1");
    Vorn::Commands::GetTimeFrames(timeframes);
+   bool result = false;
    if(From == NULL)
-      ReadPointData(SendMarketData(market, timeframes, TimeCurrent(), Candles), pointData);
+      result = ReadPointData(SendMarketData(_Symbol, timeframes, TimeCurrent(), Candles), pointData);
    else
-      ReadPointData(SendMarketData(market, timeframes, From, Candles), pointData);
+      result = ReadPointData(SendMarketData(_Symbol, timeframes, From, Candles), pointData);
+   if(!result)
+      ExpertRemove();
+//ReadPointData(edkey, economicData);
+//for(int p = 0; p < ArraySize(economicData); p++)
+//   DrawVerticalLine(StringFormat("+E%d", p), economicData[p].Time, H4Fundamental);
    for(int p = 0; p < ArraySize(pointData); p++)
      {
       if(pointData[p].TimeFrame == PERIOD_W1)
@@ -354,42 +407,53 @@ void OnChartEvent(const int id,
            }
          return;
         }
-   if(name == "LT")
+   if(name == "T")
      {
       for(int i = 0; i < ArraySize(pointData); i++)
         {
-         ToggleLeftTarget(pointData[i]);
+         if((pointData[i].States & StateValues::SignalT()) > 0)
+            ToggleArea(pointData[i]);
+         if((pointData[i].States & StateValues::SignalU()) > 0)
+            ToggleArea(pointData[i]);
         }
       return;
      }
    else
-      if(StringSubstr(name, 0, 2) == "LT")
+      if(StringSubstr(name, 0, 1) == "T")
         {
-         int tf = (int)StringSubstr(name, 2);
+         int tf = (int)StringSubstr(name, 1);
          for(int i = 0; i < ArraySize(pointData); i++)
            {
             if(pointData[i].TimeFrame == tf)
-               ToggleLeftTarget(pointData[i]);
+              {
+               if((pointData[i].States & StateValues::SignalT()) > 0)
+                  ToggleArea(pointData[i]);
+               if((pointData[i].States & StateValues::SignalU()) > 0)
+                  ToggleVerticalLine(pointData[i]);
+              }
            }
          return;
         }
-   if(name == "AC")
+   if(name == "M")
      {
       for(int i = 0; i < ArraySize(pointData); i++)
         {
-         ToggleAdxCross(pointData[i]);
+         if((pointData[i].States & StateValues::MaExtreme()) > 0)
+            ToggleVerticalLine(pointData[i]);
         }
       return;
      }
    else
-      if(StringSubstr(name, 0, 2) == "AC")
+      if(StringSubstr(name, 0, 1) == "M")
         {
-         int tf = (int)StringSubstr(name, 2);
-         for(int i = 0; i < ArraySize(pointData); i++)
-           {
-            if(pointData[i].TimeFrame == tf)
-               ToggleAdxCross(pointData[i]);
-           }
+         int tf = (int)StringSubstr(name, 1);
+         if(name == "M" + (string)tf)
+            for(int i = 0; i < ArraySize(pointData); i++)
+              {
+               if(pointData[i].TimeFrame == tf)
+                  if((pointData[i].States & StateValues::MaExtreme()) > 0)
+                     ToggleVerticalLine(pointData[i]);
+              }
          return;
         }
    if(name == "Clear")
@@ -422,8 +486,8 @@ void OnChartEvent(const int id,
            }
         }
       ToggleFiboUnba(pd);
-      if((state & StateValues::EquilibriumExtreme()) > 0)
-         ToggleArea(pd);
+      //if((state & StateValues::EquilibriumExtreme()) > 0)
+      ToggleArea(pd);
       ChartRedraw();
       return;
      }
@@ -482,9 +546,9 @@ bool ToggleFibo(PointData & pd)
 //+------------------------------------------------------------------+
 bool ToggleUnbalancing(PointData & pd)
   {
-   string name = PointDataName(pd);
    if(!(pd.Unbalancing > 0))
       return false;
+   string name = PointDataName(pd);
    string fiboUnbalacingName = "-Ub" + name;
    string vertical = "-V" + fiboUnbalacingName;
    string horizontal = "-H" + fiboUnbalacingName;
@@ -522,7 +586,7 @@ bool ToggleUnbalancing(PointData & pd)
 bool ToggleArea(PointData & pd)
   {
    string name = PointDataName(pd);
-   if(!(pd.AreaHigh > 0))
+   if(!(pd.AreaStart > 0))
       return false;
    string areaHighName = "-Eh" + name;
    string areaLowName = "-El" + name;
@@ -530,14 +594,14 @@ bool ToggleArea(PointData & pd)
    if(ObjectFind(0, areaHighName) < 0)
      {
       DrawTrendline(areaVerticalName,
-                    pd.AreaHighTime,
-                    pd.AreaHigh,
-                    pd.AreaLowTime,
-                    pd.AreaLow,
+                    pd.AreaStartTime,
+                    pd.AreaStart,
+                    pd.AreaEndTime,
+                    pd.AreaEnd,
                     (color)pd.Color,
                     0);
-      DrawHorizontalLine(areaHighName, pd.AreaHigh, pd.Color, 0, STYLE_SOLID);
-      DrawHorizontalLine(areaLowName, pd.AreaLow, pd.Color, 0, STYLE_SOLID);
+      DrawHorizontalLine(areaHighName, pd.AreaStart, pd.Color, 0, STYLE_SOLID);
+      DrawHorizontalLine(areaLowName, pd.AreaEnd, pd.Color, 0, STYLE_SOLID);
       return true;
      }
    else
@@ -545,6 +609,22 @@ bool ToggleArea(PointData & pd)
       ObjectDelete(0, areaVerticalName);
       ObjectDelete(0, areaHighName);
       ObjectDelete(0, areaLowName);
+      return false;
+     }
+  }
+//+------------------------------------------------------------------+
+bool ToggleVerticalLine(PointData & pd)
+  {
+   string name = PointDataName(pd);
+   string areaVerticalName = "-Vl" + name;
+   if(ObjectFind(0, areaVerticalName) < 0)
+     {
+      DrawVerticalLine(areaVerticalName, pd.Time, pd.Color);
+      return true;
+     }
+   else
+     {
+      ObjectDelete(0, areaVerticalName);
       return false;
      }
   }
@@ -568,44 +648,6 @@ void ToggleLastMaster(PointData & pd[], int tf)
            }
         }
      }
-  }
-//+------------------------------------------------------------------+
-void ToggleLeftTarget(PointData & pd)
-  {
-   if((pd.States & StateValues::LeftTarget()) == 0)
-      return;
-   string name = "-LT" + PointDataName(pd);
-   string vertical = "-V" + name;
-   if(ObjectFind(0, vertical) < 0)
-     {
-      DrawVerticalLine(vertical,
-                       pd.Time,
-                       (color)pd.Color);
-     }
-   else
-     {
-      ObjectDelete(0, vertical);
-     }
-   ChartRedraw();
-  }
-//+------------------------------------------------------------------+
-void ToggleAdxCross(PointData & pd)
-  {
-   if((pd.States & StateValues::AdxCross()) == 0)
-      return;
-   string name = "-AC" + PointDataName(pd);
-   string vertical = "-V" + name;
-   if(ObjectFind(0, vertical) < 0)
-     {
-      DrawVerticalLine(vertical,
-                       pd.Time,
-                       (color)pd.Color);
-     }
-   else
-     {
-      ObjectDelete(0, vertical);
-     }
-   ChartRedraw();
   }
 //+------------------------------------------------------------------+
 void ClearObjects()

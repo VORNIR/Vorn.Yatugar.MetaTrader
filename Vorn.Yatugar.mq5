@@ -14,22 +14,12 @@
 bool InitializeYatugar() export
   {
    bool connected = Vorn::Commands::CreateClient();
-   if(connected)
-      SetMarkets();
    return connected;
   }
 //+------------------------------------------------------------------+
 bool DeinitializeYatugar() export
   {
    return Vorn::Commands::DeleteClient();
-  }
-//+------------------------------------------------------------------+
-void SetMarkets()
-  {
-   for(int i = 0; i < SymbolsTotal(true); i++)
-     {
-      Vorn::Commands::AddMarket(SymbolName(i, true));
-     }
   }
 //+------------------------------------------------------------------+
 string PointDataName(PointData &pd) export
@@ -102,9 +92,8 @@ void CalendarUpdate(datetime from, datetime to) export
    Vorn::Commands::DeleteClient();
   }
 //+------------------------------------------------------------------+
-void CopyRateData(int market, int timeframe, int start, int count, uchar &bytes[]) export
+void CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[]) export
   {
-   string sym = SymbolName(market, true);
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
    int n = CopyRates(sym, (ENUM_TIMEFRAMES)timeframe, start, count, rates);
@@ -130,7 +119,7 @@ void CopyRateData(int market, int timeframe, int start, int count, uchar &bytes[
       RateData dst;
       dst.Index = i;
       dst.MarketName = ulong_var;
-      dst.Market = market;
+      //dst.Market = market;
       dst.Volatility = pv * monetaryValue;
       dst.TimeFrame = timeframe;
       dst.Time = (int)rates[i].time;
@@ -146,18 +135,20 @@ void CopyRateData(int market, int timeframe, int start, int count, uchar &bytes[
      }
   }
 //+------------------------------------------------------------------+
-void ReadPointData(int key,  PointData &md[]) export
+bool ReadPointData(int key,  PointData &md[]) export
   {
    uchar mdb[];
-   Vorn::Commands::ReadPointData(key, mdb, 60000);
-
-   int m = ArraySize(mdb) / sizeof(PointData);
-   ArrayResize(md, m);
-   for(int i = 0; i < m; i++)
+   bool result = Vorn::Commands::ReadPointData(key, mdb, 15000);
+   if(result)
      {
-      CharArrayToStruct(md[i], mdb, i * sizeof(PointData));
+      int m = ArraySize(mdb) / sizeof(PointData);
+      ArrayResize(md, m);
+      for(int i = 0; i < m; i++)
+        {
+         CharArrayToStruct(md[i], mdb, i * sizeof(PointData));
+        }
      }
-
+   return result;
   }
 //+------------------------------------------------------------------+
 double CalculatePriceVolatility(MqlRates & rates[])
@@ -175,23 +166,36 @@ double CalculatePriceVolatility(MqlRates & rates[])
    return MathSqrt(variance);
   }
 //+------------------------------------------------------------------+
-bool CopyMarketData(int market, int & timeframes[], datetime from, int count, uchar & bytes[])
+bool CopyMarketData(string sym, int & timeframes[], datetime from, int count, uchar & bytes[])
   {
    for(int tf = 0; tf < ArraySize(timeframes); tf++)
      {
-      int start = iBarShift(SymbolName(market, true), (ENUM_TIMEFRAMES)timeframes[tf], from);
-      CopyRateData(market, timeframes[tf], start, count, bytes);
+      int start = iBarShift(sym, (ENUM_TIMEFRAMES)timeframes[tf], from);
+      CopyRateData(sym, timeframes[tf], start, count, bytes);
      }
    return true;
   }
 //+------------------------------------------------------------------+
-int SendMarketData(int market, int & timeframes[], datetime from, int count) export
+int SendMarketData(string sym, int & timeframes[], datetime from, int count) export
   {
    int cnt = count + 200;
    uchar rd[];
-   CopyMarketData(market, timeframes, from, cnt, rd);
+   CopyMarketData(sym, timeframes, from, cnt, rd);
    uchar mdb[];
    int key = Vorn::Commands::SendMarketData(rd, cnt);
    return key;
   }
+//+------------------------------------------------------------------+
+string UlongToString(ulong ulong_var) export
+  {
+   string result = "";
+   for(int i = 0; i < 8; i++)
+     {
+      uchar byte = (uchar)(ulong_var >> (56 - i * 8)) & 0xFF;
+      if(byte != 0)
+         result += CharToString(byte);
+     }
+   return result;
+  }
+//+------------------------------------------------------------------+}
 //+------------------------------------------------------------------+
