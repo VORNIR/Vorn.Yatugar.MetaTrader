@@ -76,11 +76,11 @@ sinput bool M30 = true; // M30 Enabled
 sinput int M30Size = 3; // M30 Icon Size
 sinput int M30Offset = 3; // M30 Icon Size
 input group           "M5"
-sinput bool M5 = false; // M5 Enabled
+sinput bool M5 = true; // M5 Enabled
 sinput int M5Size = 2; // M5 Icon Size
 sinput int M5Offset = 2; // M5 Icon Size
 input group           "M1"
-sinput bool M1 = false; // M1 Enabled
+sinput bool M1 = true; // M1 Enabled
 sinput int M1Size = 1; // M1 Icon Size
 sinput int M1Offset = 1; // M1 Icon Size
 //+------------------------------------------------------------------+
@@ -111,7 +111,8 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Icon = 116;
       pd.Anchor = ANCHOR_TOP;
       if(Master)
-         DrawPointData(pd, pd.F0);
+         if((pd.States & StateValues::StraightMaster()) > 0)
+            DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::NegativeMaster()) > 0)
      {
@@ -119,7 +120,8 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Icon = 116;
       pd.Anchor = ANCHOR_BOTTOM;
       if(Master)
-         DrawPointData(pd, pd.F0);
+         if((pd.States & StateValues::StraightMaster()) > 0)
+            DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::PositiveBaseSwitch()) > 0)
      {
@@ -140,32 +142,32 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
    if((pd.States & StateValues::SignalA1()) > 0)
      {
       pd.Color = pcolor;
-      DrawText(PointDataName(pd) + "L", "A1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
+      DrawText(PointDataName(pd) + "L", "A1", pd.Time, pd.Low - 4 * (pd.High - pd.Low), 7 + size, pd.Color);
      }
    if((pd.States & StateValues::SignalA2()) > 0)
      {
       pd.Color = ncolor;
-      DrawText(PointDataName(pd) + "L", "A2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
+      DrawText(PointDataName(pd) + "L", "A2", pd.Time, pd.High + 4 * (pd.High - pd.Low),  7 + size, pd.Color);
      }
-//if((pd.States & StateValues::SignalBb1()) > 0)
-//  {
-//   pd.Color = pcolor;
-//   DrawText(PointDataName(pd) + "L", "Bb1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
-//  }
-//if((pd.States & StateValues::SignalBb2()) > 0)
-//  {
-//   pd.Color = ncolor;
-//   DrawText(PointDataName(pd) + "L", "Bb2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
-//  }
+   if((pd.States & StateValues::SignalBb1()) > 0)
+     {
+      pd.Color = pcolor;
+      DrawText(PointDataName(pd) + "LBb1", "Bb1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
+     }
+   if((pd.States & StateValues::SignalBb2()) > 0)
+     {
+      pd.Color = ncolor;
+      DrawText(PointDataName(pd) + "LBb2", "Bb2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
+     }
    if((pd.States & StateValues::SignalB1()) > 0)
      {
       pd.Color = pcolor;
-      DrawText(PointDataName(pd) + "L", "B1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
+      DrawText(PointDataName(pd) + "LB1", "B1", pd.Time, pd.Low - 5 * (pd.High - pd.Low), 7 + size, pd.Color);
      }
    if((pd.States & StateValues::SignalB2()) > 0)
      {
       pd.Color = ncolor;
-      DrawText(PointDataName(pd) + "L", "B2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
+      DrawText(PointDataName(pd) + "LB2", "B2", pd.Time, pd.High + 5 * (pd.High - pd.Low),  7 + size, pd.Color);
      }
 //if((pd.States & StateValues::SignalP1()) > 0)
 //  {
@@ -205,13 +207,13 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
      {
       pd.Color = wcolor;
      }
-   if((pd.States & StateValues::MaPeak()) > 0)
-     {
-      pd.Color = ncolor;
-     }
-   if((pd.States & StateValues::MaTrough()) > 0)
+   if((pd.States & StateValues::NegativeMacdDivergence()) > 0)
      {
       pd.Color = pcolor;
+     }
+   if((pd.States & StateValues::PositiveMacdDivergence()) > 0)
+     {
+      pd.Color = ncolor;
      }
    if((pd.States & StateValues::EquilibriumExtreme()) > 0)
      {
@@ -221,6 +223,29 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Anchor = ANCHOR_TOP;
       if(ExtremeAreas)
          DrawPointData(pd, pd.AreaStart);
+     }
+   if((pd.States & StateValues::MaResonance()) > 0)
+     {
+      pd.Offset = 0;
+      pd.Size = pd.Size - 1;
+      pd.Icon = 159;
+      int handle = iMA(_Symbol, _Period, 70, 0, MODE_LWMA, PRICE_CLOSE);
+      int index = iBarShift(_Symbol, _Period, pd.Time);
+      double m[];
+      CopyBuffer(handle, 0, index, 1,  m);
+      double ma = m[0];
+      if(pd.Macd > 0)
+        {
+         pd.Color = pcolor;
+         pd.Anchor = ANCHOR_TOP;
+        }
+      if(pd.Macd < 0)
+        {
+         pd.Color = ncolor;
+         pd.Anchor = ANCHOR_BOTTOM;
+        }
+      pd.States = StateValues::MaResonance();
+      DrawPointData(pd, ma);
      }
    if((pd.States & StateValues::MacdResonance()) > 0)
      {
@@ -244,6 +269,7 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
          pd.Color = ncolor;
          pd.Anchor = ANCHOR_TOP;
         }
+      pd.States = StateValues::MacdResonance();
       DrawPointData(pd,  macd * pd.Macd > 0 ? macd : 0);
      }
   }
@@ -289,13 +315,17 @@ int OnInit()
    if(D1)
       Vorn::Commands::AddTimeFrame(PERIOD_D1, "D1");
    if(H4)
-      Vorn::Commands::AddTimeFrame(PERIOD_H4, "H4");
+      if(_Period <= PERIOD_H4)
+         Vorn::Commands::AddTimeFrame(PERIOD_H4, "H4");
    if(M30)
-      Vorn::Commands::AddTimeFrame(PERIOD_M30, "M30");
+      if(_Period <= PERIOD_M30)
+         Vorn::Commands::AddTimeFrame(PERIOD_M30, "M30");
    if(M5)
-      Vorn::Commands::AddTimeFrame(PERIOD_M5, "M5");
+      if(_Period <= PERIOD_M5)
+         Vorn::Commands::AddTimeFrame(PERIOD_M5, "M5");
    if(M1)
-      Vorn::Commands::AddTimeFrame(PERIOD_M1, "M1");
+      if(_Period <= PERIOD_M1)
+         Vorn::Commands::AddTimeFrame(PERIOD_M1, "M1");
    Vorn::Commands::GetTimeFrames(timeframes);
    bool result = false;
    if(From == NULL)
@@ -438,7 +468,7 @@ void OnChartEvent(const int id,
      {
       for(int i = 0; i < ArraySize(pointData); i++)
         {
-         if((pointData[i].States & StateValues::MaExtreme()) > 0)
+         if((pointData[i].States & StateValues::MacdDivergence()) > 0)
             ToggleVerticalLine(pointData[i]);
         }
       return;
@@ -451,7 +481,7 @@ void OnChartEvent(const int id,
             for(int i = 0; i < ArraySize(pointData); i++)
               {
                if(pointData[i].TimeFrame == tf)
-                  if((pointData[i].States & StateValues::MaExtreme()) > 0)
+                  if((pointData[i].States & StateValues::MacdDivergence()) > 0)
                      ToggleVerticalLine(pointData[i]);
               }
          return;

@@ -8,7 +8,7 @@
 #property link      "https://vorn.ir"
 #property version   "1.00"
 //+------------------------------------------------------------------+
-#import "Vorn.Yatugar.Separ.Client.dll"
+#import "Vorn.Yatugar.Separ.OfflineClient.dll"
 #import
 //+------------------------------------------------------------------+
 bool InitializeYatugar() export
@@ -76,20 +76,6 @@ void CopyCalendarValueData(MqlCalendarValue &value[], uchar &bytes[])
       StructToCharArray(vd, b);
       ArrayInsert(bytes, b, ArraySize(bytes));
      }
-  }
-//+------------------------------------------------------------------+
-void CalendarUpdate(datetime from, datetime to) export
-  {
-   uchar vd[];
-   MqlCalendarValue values[];
-   CalendarValueHistoryByCountry("US", from, to, values);
-   CalendarValueHistoryByCountry("EU", from, to, values);
-   CalendarValueHistoryByCountry("GB", from, to, values);
-   CalendarValueHistoryByCountry("JP", from, to, values);
-   CopyCalendarValueData(values, vd);
-   Vorn::Commands::CreateClient();
-   Vorn::Commands::CalendarUpdate(vd);
-   Vorn::Commands::DeleteClient();
   }
 //+------------------------------------------------------------------+
 void CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[]) export
@@ -188,9 +174,13 @@ bool CopyMarketData(string sym, int & timeframes[], datetime from, int count, uc
 //+------------------------------------------------------------------+
 int SendMarketData(string sym, int & timeframes[], datetime from, int count) export
   {
-   int cnt = count + 200;
+   int cnt = count + 300;
    uchar rd[];
    CopyMarketData(sym, timeframes, from, cnt, rd);
+   int file_handle = FileOpen("RateData.bin", FILE_READ | FILE_WRITE | FILE_BIN);
+   FileSeek(file_handle, 0, SEEK_END);
+   FileWriteArray(file_handle, rd);
+   FileClose(file_handle);
    int key = Vorn::Commands::SendMarketData(rd, cnt);
    return key;
   }

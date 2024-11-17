@@ -14,7 +14,7 @@
 bool InitializeYatugar();
 bool DeinitializeYatugar();
 int SendMarketData(string sym, int & timeframes[], datetime From, int count);
-void ReadPointData(int key,  PointData &md[]);
+bool ReadPointData(int key,  PointData &md[]);
 string UlongToString(ulong ulongVar);
 #import
 //+------------------------------------------------------------------+
@@ -49,7 +49,7 @@ void OnTimer()
 string Search()
   {
    string report = "";
-   int timeframes[] = {PERIOD_H4, PERIOD_M30, PERIOD_M5};
+   int timeframes[] = {PERIOD_D1, PERIOD_H4, PERIOD_M30};
    for(int i = 0; i < SymbolsTotal(false); i++)
      {
       if(StringLen(SymbolName(i, false)) < 6)
@@ -71,10 +71,14 @@ string Search(int key, int & timeframes[])
   {
    PointData pd[] = {};
    string report = "";
-   ReadPointData(key, pd);
-   report += StateReport(pd, StateValues::SignalBb1(), timeframes, " HasSignalBb1 ");
-   report += StateReport(pd, StateValues::SignalBb2(), timeframes, " HasSignalBb2 ");
-   report += StateReport(pd, StateValues::SignalU(), timeframes, " HasSignalU ");
+   if(ReadPointData(key, pd))
+     {
+      report += StateReport(pd, StateValues::SignalBb1(), timeframes, " HasSignalBb1 ");
+      report += StateReport(pd, StateValues::SignalBb2(), timeframes, " HasSignalBb2 ");
+      report += StateReport(pd, StateValues::SignalB1(), timeframes, " HasSignalB1 ");
+      report += StateReport(pd, StateValues::SignalB2(), timeframes, " HasSignalB2 ");
+      report += StateReport(pd, StateValues::SignalU(), timeframes, " HasSignalU ");
+     }
    return report;
   }
 //+------------------------------------------------------------------+
