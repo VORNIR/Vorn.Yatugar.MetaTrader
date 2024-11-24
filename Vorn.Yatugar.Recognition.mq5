@@ -2,20 +2,12 @@
 //|                                                             Vorn |
 //|                                                  https://vorn.ir |
 //+------------------------------------------------------------------+
+#property library
 #property copyright "Vorn"
 #property link      "https://vorn.ir"
 #property version   "1.00"
 //+------------------------------------------------------------------+
-#import "Vorn.Yatugar.Separ.Client.dll"
-#import
-//+------------------------------------------------------------------+
-#import "Vorn.Yatugar.ex5"
-bool InitializeYatugar();
-int SendMarketData(string sym, int & timeframes[], datetime From, int count);
-bool ReadPointData(int key,  PointData &md[]);
-string PointDataName(PointData &pd);
-bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0);
-bool DeinitializeYatugar();
+#import "Vorn.Yatugar.Separ.Common.dll"
 #import
 //+------------------------------------------------------------------+
 #import "Vorn.Graphics.ex5"
@@ -31,63 +23,13 @@ void DrawButton(string name, string text, int x, int y, int width, int height, c
 void DrawText(string name, string text, datetime time, double price, int size = 5, color textclr = clrWhite);
 #import
 //+------------------------------------------------------------------+
-sinput int Candles = 1000;
-sinput datetime From = NULL;
-input group           "Colors"
-sinput color W1Positive = C'34, 49, 59';
-sinput color D1Positive = C'54, 69, 79';
-sinput color H4Positive = C'10, 117, 143';
-sinput color M30Positive = C'0,255,240';
-sinput color M5Positive = clrGreenYellow;
-sinput color M1Positive = C'162,240,162';
-sinput color W1Negative = C'90, 0, 0';
-sinput color D1Negative = C'128, 0, 0';
-sinput color H4Negative = C'219,22,47';
-sinput color M30Negative = C'199, 91, 122';
-sinput color M5Negative = clrMediumVioletRed;
-sinput color M1Negative = C'255,166,215';
-sinput color W1Warning = C'119,15,15';
-sinput color D1Warning = C'139,35,35';
-sinput color H4Warning = C'235, 91, 0';
-sinput color M30Warning = C'255, 178, 0';
-sinput color M5Warning = C'243,238,194';
-sinput color M1Warning = C'249,245,221';
-sinput color H4Fundamental = C'244, 206, 20';
-input group           "Display"
-sinput bool Master = true; // Master Fibonacci Retracement
-sinput bool Switch = true; // Switch Fibonacci Retracement
-sinput bool ExtremeAreas = true; //Extreme Areas
-sinput bool Fundamental = true; //Fundamental Events
-sinput bool Signals = true; //Signals
-input group           "W1 "
-sinput bool W1 = false; // W1 Enabled
-sinput int W1Size = 6; // W1 Icon Size
-sinput int W1Offset = 6; // W1 Icon Size
-input group           "D1 "
-sinput bool D1 = true; // D1 Enabled
-sinput int D1Size = 5; // D1 Icon Size
-sinput int D1Offset = 5; // D1 Icon Size
-input group           "H4 "
-sinput bool H4 = true; // H4 Enabled
-sinput int H4Size = 4; // H4 Icon Size
-sinput int H4Offset = 4; // H4 Icon Size
-input group           "M30"
-sinput bool M30 = true; // M30 Enabled
-sinput int M30Size = 3; // M30 Icon Size
-sinput int M30Offset = 3; // M30 Icon Size
-input group           "M5"
-sinput bool M5 = true; // M5 Enabled
-sinput int M5Size = 2; // M5 Icon Size
-sinput int M5Offset = 2; // M5 Icon Size
-input group           "M1"
-sinput bool M1 = true; // M1 Enabled
-sinput int M1Size = 1; // M1 Icon Size
-sinput int M1Offset = 1; // M1 Icon Size
+string actions[] = {"F", "U", "X", "T", "M", "O"};
 //+------------------------------------------------------------------+
-PointData pointData[];
-PointData economicData[];
-int timeframes[] = {};
-string actions[] = {"F", "U", "X", "T", "M"};
+string PointDataName(PointData &pd) export
+  {
+   string name = StringFormat("+%I64uS%dT%d", pd.States, pd.Id, pd.TimeFrame);
+   return name;
+  }
 //+------------------------------------------------------------------+
 void DrawPointData(PointData & pd, double position)
   {
@@ -101,7 +43,7 @@ void DrawPointData(PointData & pd, double position)
             (ENUM_ARROW_ANCHOR)pd.Anchor);
   }
 //+------------------------------------------------------------------+
-void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int size, int offset)
+void DrawPointData(PointData & pd, Settings & settings, color pcolor, color ncolor, color wcolor, int size, int offset)
   {
    pd.Size = size;
    pd.Offset = offset;
@@ -110,25 +52,25 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Color = pcolor;
       pd.Icon = 116;
       pd.Anchor = ANCHOR_TOP;
-      if(Master)
-         if((pd.States & StateValues::StraightMaster()) > 0)
-            DrawPointData(pd, pd.F0);
+      if(settings.Master)
+         //if((pd.States & StateValues::StraightMaster()) > 0)
+         DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::NegativeMaster()) > 0)
      {
       pd.Color = ncolor;
       pd.Icon = 116;
       pd.Anchor = ANCHOR_BOTTOM;
-      if(Master)
-         if((pd.States & StateValues::StraightMaster()) > 0)
-            DrawPointData(pd, pd.F0);
+      if(settings.Master)
+         //if((pd.States & StateValues::StraightMaster()) > 0)
+         DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::PositiveBaseSwitch()) > 0)
      {
       pd.Color = pcolor;
       pd.Icon = 161;
       pd.Anchor = ANCHOR_TOP;
-      if(Switch)
+      if(settings.Switch)
          DrawPointData(pd, pd.Low);
      }
    if((pd.States & StateValues::NegativeBaseSwitch()) > 0)
@@ -136,7 +78,7 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
       pd.Color = ncolor;
       pd.Icon = 161;
       pd.Anchor = ANCHOR_BOTTOM;
-      if(Switch)
+      if(settings.Switch)
          DrawPointData(pd, pd.High);
      }
    if((pd.States & StateValues::SignalA1()) > 0)
@@ -193,19 +135,25 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
      {
       pd.Color = wcolor;
       double labelPrice = pd.Low - 4 * (pd.High - pd.Low);
-      DrawTrendline(PointDataName(pd) + "VT1", pd.Time, labelPrice, pd.Time, (pd.High + pd.Low) / 2, pd.Color);
       DrawText(PointDataName(pd) + "LT1", "T1", pd.Time, labelPrice, 7 + size, pd.Color);
      }
    if((pd.States & StateValues::SignalT2()) > 0)
      {
       pd.Color = wcolor;
       double labelPrice = pd.High + 4 * (pd.High - pd.Low);
-      DrawTrendline(PointDataName(pd) + "VT2", pd.Time, labelPrice, pd.Time, (pd.High + pd.Low) / 2, pd.Color);
       DrawText(PointDataName(pd) + "LT2", "T2", pd.Time, labelPrice, 7 + size, pd.Color);
      }
-   if((pd.States & StateValues::SignalU()) > 0)
+   if((pd.States & StateValues::SignalU1()) > 0)
      {
       pd.Color = wcolor;
+      double labelPrice = pd.Low - 4 * (pd.High - pd.Low);
+      DrawText(PointDataName(pd) + "LU1", "U1", pd.Time, labelPrice, 7 + size, pd.Color);
+     }
+   if((pd.States & StateValues::SignalU2()) > 0)
+     {
+      pd.Color = wcolor;
+      double labelPrice = pd.High + 4 * (pd.High - pd.Low);
+      DrawText(PointDataName(pd) + "LU2", "U2", pd.Time, labelPrice, 7 + size, pd.Color);
      }
    if((pd.States & StateValues::NegativeMacdDivergence()) > 0)
      {
@@ -215,13 +163,37 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
      {
       pd.Color = ncolor;
      }
+   if((pd.States & StateValues::Buy()) > 0)
+     {
+      pd.Color = pcolor;
+     }
+   if((pd.States & StateValues::Sell()) > 0)
+     {
+      pd.Color = ncolor;
+     }
+   if((pd.States & StateValues::PositiveSar()) > 0)
+     {
+      pd.Color = pcolor;
+      pd.Icon = 159;
+      pd.Size = pd.Size - 1;
+      pd.Anchor = ANCHOR_TOP;
+      DrawPointData(pd, pd.Value);
+     }
+   if((pd.States & StateValues::NegativeSar()) > 0)
+     {
+      pd.Color = ncolor;
+      pd.Icon = 159;
+      pd.Size = pd.Size - 1;
+      pd.Anchor = ANCHOR_BOTTOM;
+      DrawPointData(pd, pd.Value);
+     }
    if((pd.States & StateValues::EquilibriumExtreme()) > 0)
      {
       pd.Offset = 0;
       pd.Color = wcolor;
       pd.Icon = 159;
       pd.Anchor = ANCHOR_TOP;
-      if(ExtremeAreas)
+      if(settings.ExtremeAreas)
          DrawPointData(pd, pd.AreaStart);
      }
    if((pd.States & StateValues::MaResonance()) > 0)
@@ -274,8 +246,9 @@ void DrawPointData(PointData & pd, color pcolor, color ncolor, color wcolor, int
      }
   }
 //+------------------------------------------------------------------+
-void  DrawButtons()
+void  DrawButtons(int & timeframes[])
   {
+   ClearButtons();
    color clr = C'73, 78, 101';
    int w = 25;
    int h = 25;
@@ -290,7 +263,7 @@ void  DrawButtons()
       for(int t = 0, x = 10; t < ArraySize(timeframes); t++)
         {
          x += w + g;
-         DrawButton(actions[a] + (string)timeframes[t], Vorn::Commands::GetTimeFrameName(timeframes[t]), x, y, w, h, clr);
+         DrawButton(actions[a] + (string)timeframes[t], GetTimeFrameName(timeframes[t]), x, y, w, h, clr);
         }
      }
    x = 10;
@@ -299,84 +272,69 @@ void  DrawButtons()
    ChartRedraw();
   }
 //+------------------------------------------------------------------+
-int OnInit()
+string GetTimeFrameName(int timeframe)
   {
-   ClearObjects();
-   ClearIcons();
-   if(!InitializeYatugar())
+   switch(timeframe)
      {
-      DeinitializeYatugar();
-      return(INIT_FAILED);
+      case(int)PERIOD_M1:
+         return "M1";
+      case(int)PERIOD_M5:
+         return "M5";
+      case(int)PERIOD_M30:
+         return "M30";
+      case(int)PERIOD_H4:
+         return "H4";
+      case(int)PERIOD_D1:
+         return "D1";
+      case(int)PERIOD_W1:
+         return "W1";
+      case(int)PERIOD_MN1:
+         return "MN1";
+      default:
+         return "";
      }
-//int edkey = Vorn::Commands::GetEconomicData(_Symbol);
-   int market = Vorn::Commands::GetMarket(_Symbol);
-   if(W1)
-      Vorn::Commands::AddTimeFrame(PERIOD_W1, "W1");
-   if(D1)
-      Vorn::Commands::AddTimeFrame(PERIOD_D1, "D1");
-   if(H4)
-      if(_Period <= PERIOD_H4)
-         Vorn::Commands::AddTimeFrame(PERIOD_H4, "H4");
-   if(M30)
-      if(_Period <= PERIOD_M30)
-         Vorn::Commands::AddTimeFrame(PERIOD_M30, "M30");
-   if(M5)
-      if(_Period <= PERIOD_M5)
-         Vorn::Commands::AddTimeFrame(PERIOD_M5, "M5");
-   if(M1)
-      if(_Period <= PERIOD_M1)
-         Vorn::Commands::AddTimeFrame(PERIOD_M1, "M1");
-   Vorn::Commands::GetTimeFrames(timeframes);
-   bool result = false;
-   if(From == NULL)
-      result = ReadPointData(SendMarketData(_Symbol, timeframes, TimeCurrent(), Candles), pointData);
-   else
-      result = ReadPointData(SendMarketData(_Symbol, timeframes, From, Candles), pointData);
-   if(!result)
-      ExpertRemove();
-//ReadPointData(edkey, economicData);
-//for(int p = 0; p < ArraySize(economicData); p++)
-//   DrawVerticalLine(StringFormat("+E%d", p), economicData[p].Time, H4Fundamental);
+  }
+void CopyArray(PointData &dest[], const PointData &src[]) { ArrayResize(dest, ArraySize(src)); for(int i = 0; i < ArraySize(src); i++) { dest[i] = src[i]; } }
+//+------------------------------------------------------------------+
+void DrawRecognition(PointData & pointData[], Settings & settings, int & timeframes[]) export
+  {
    for(int p = 0; p < ArraySize(pointData); p++)
      {
+      if(pointData[p].TimeFrame == PERIOD_MN1)
+        {
+         DrawPointData(pointData[p], settings, settings.MN1Positive, settings.MN1Negative, settings.MN1Warning, settings.MN1Size, settings.MN1Offset);
+        }
       if(pointData[p].TimeFrame == PERIOD_W1)
         {
-         DrawPointData(pointData[p], W1Positive, W1Negative, W1Warning, W1Size, W1Offset);
+         DrawPointData(pointData[p], settings, settings.W1Positive, settings.W1Negative, settings.W1Warning, settings.W1Size, settings.W1Offset);
         }
       if(pointData[p].TimeFrame == PERIOD_D1)
         {
-         DrawPointData(pointData[p], D1Positive, D1Negative, D1Warning, D1Size, D1Offset);
+         DrawPointData(pointData[p], settings, settings.D1Positive, settings.D1Negative, settings.D1Warning, settings.D1Size, settings.D1Offset);
         }
       if(pointData[p].TimeFrame == PERIOD_H4)
         {
-         DrawPointData(pointData[p], H4Positive, H4Negative, H4Warning, H4Size, H4Offset);
+         DrawPointData(pointData[p], settings, settings.H4Positive, settings.H4Negative, settings.H4Warning, settings.H4Size, settings.H4Offset);
         }
       if(pointData[p].TimeFrame == PERIOD_M30)
         {
-         DrawPointData(pointData[p], M30Positive, M30Negative, M30Warning, M30Size, M30Offset);
+         DrawPointData(pointData[p], settings, settings.M30Positive, settings.M30Negative, settings.M30Warning, settings.M30Size, settings.M30Offset);
         }
       if(pointData[p].TimeFrame == PERIOD_M5)
         {
-         DrawPointData(pointData[p], M5Positive, M5Negative, M5Warning, M5Size, M5Offset);
+         DrawPointData(pointData[p], settings, settings.M5Positive, settings.M5Negative, settings.M5Warning, settings.M5Size, settings.M5Offset);
         }
       if(pointData[p].TimeFrame == PERIOD_M1)
         {
-         DrawPointData(pointData[p], M1Positive, M1Negative, M1Warning, M1Size, M1Offset);
+         DrawPointData(pointData[p], settings, settings.M1Positive, settings.M1Negative, settings.M1Warning, settings.M1Size, settings.M1Offset);
         }
      }
-   DrawButtons();
+   DrawButtons(timeframes);
    ChartRedraw();
-   return(INIT_SUCCEEDED);
   }
 //+------------------------------------------------------------------+
-void OnDeinit(const int reason)
-  {
-   DeinitializeYatugar();
-   ClearButtons();
-  }
-//+------------------------------------------------------------------+
-void OnChartEvent(const int id,
-                  const long & lparam, const double & dparam, const string & sparam)
+void ChartEvent(PointData & pointData[], int & timeframes[], const int id,
+                const long & lparam, const double & dparam, const string & sparam) export
   {
    ENUM_CHART_EVENT evt = (ENUM_CHART_EVENT)id;
    if(evt != CHARTEVENT_OBJECT_CLICK)
@@ -482,6 +440,28 @@ void OnChartEvent(const int id,
               {
                if(pointData[i].TimeFrame == tf)
                   if((pointData[i].States & StateValues::MacdDivergence()) > 0)
+                     ToggleVerticalLine(pointData[i]);
+              }
+         return;
+        }
+   if(name == "O")
+     {
+      for(int i = 0; i < ArraySize(pointData); i++)
+        {
+         if((pointData[i].States & StateValues::Trade()) > 0)
+            ToggleVerticalLine(pointData[i]);
+        }
+      return;
+     }
+   else
+      if(StringSubstr(name, 0, 1) == "O")
+        {
+         int tf = (int)StringSubstr(name, 1);
+         if(name == "O" + (string)tf)
+            for(int i = 0; i < ArraySize(pointData); i++)
+              {
+               if(pointData[i].TimeFrame == tf)
+                  if((pointData[i].States & StateValues::Trade()) > 0)
                      ToggleVerticalLine(pointData[i]);
               }
          return;
@@ -680,25 +660,40 @@ void ToggleLastMaster(PointData & pd[], int tf)
      }
   }
 //+------------------------------------------------------------------+
-void ClearObjects()
+void ClearObjects() export
   {
    ObjectsDeleteAll(0, "-");
    ChartRedraw();
   }
 //+------------------------------------------------------------------+
-void ClearIcons()
+void ClearIcons() export
   {
    ObjectsDeleteAll(0, "+");
    ChartRedraw();
   }
 //+------------------------------------------------------------------+
-void ClearButtons()
+void ClearButtons() export
   {
    for(int a = 0; a < ArraySize(actions); a++)
      {
-      ObjectsDeleteAll(0, actions[a]);
+      ObjectsDeleteAll(0, actions[a], 0);
      }
    ObjectDelete(0, "Clear");
    ObjectDelete(0, "Remove");
+  }
+//+------------------------------------------------------------------+
+bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0) export
+  {
+   for(int i = startIndex; i < ArraySize(pds); i++)
+     {
+      if(pds[i].TimeFrame == timeframe)
+         if(id != NULL ? pds[i].Id == id : true)
+            if(state != NULL ? (pds[i].States & state) > 0 : true)
+              {
+               pd = pds[i];
+               return true;
+              }
+     }
+   return false;
   }
 //+------------------------------------------------------------------+

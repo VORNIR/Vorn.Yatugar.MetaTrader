@@ -7,10 +7,13 @@
 #property link      "https://vorn.ir"
 #property version   "1.00"
 //+------------------------------------------------------------------+
-#import "Vorn.Yatugar.Separ.Client.dll"
+#import "Vorn.Yatugar.Separ.Common.dll"
 #import
 //+------------------------------------------------------------------+
-#import "Vorn.Yatugar.ex5"
+#import "Vorn.Yatugar.Separ.OfflineClient.dll"
+#import
+//+------------------------------------------------------------------+
+#import "Vorn.Yatugar.Offline.ex5"
 bool InitializeYatugar();
 bool DeinitializeYatugar();
 int SendMarketData(string sym, int & timeframes[], datetime From, int count);
@@ -28,7 +31,7 @@ int OnInit()
       return(INIT_FAILED);
    previous = Search();
    Print(previous);
-   EventSetTimer(10 * 60);
+   EventSetTimer(20 * 60);
 //ExpertRemove();
    return(INIT_SUCCEEDED);
   }
