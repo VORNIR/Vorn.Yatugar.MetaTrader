@@ -50,19 +50,17 @@ void DrawPointData(PointData & pd, Settings & settings, color pcolor, color ncol
    if((pd.States & StateValues::PositiveMaster()) > 0)
      {
       pd.Color = pcolor;
-      pd.Icon = 116;
+      pd.Icon = (pd.States & StateValues::StraightMaster()) > 0 ? 118 : 116;
       pd.Anchor = ANCHOR_TOP;
       if(settings.Master)
-         //if((pd.States & StateValues::StraightMaster()) > 0)
          DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::NegativeMaster()) > 0)
      {
       pd.Color = ncolor;
-      pd.Icon = 116;
+      pd.Icon = (pd.States & StateValues::StraightMaster()) > 0 ? 118 : 116;
       pd.Anchor = ANCHOR_BOTTOM;
       if(settings.Master)
-         //if((pd.States & StateValues::StraightMaster()) > 0)
          DrawPointData(pd, pd.F0);
      }
    if((pd.States & StateValues::PositiveBaseSwitch()) > 0)

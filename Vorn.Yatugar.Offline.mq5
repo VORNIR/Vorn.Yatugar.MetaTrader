@@ -45,15 +45,30 @@ bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NU
    return false;
   }
 //+------------------------------------------------------------------+
-void CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[]) export
+int CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[]) export
   {
    MqlRates rates[];
    ArraySetAsSeries(rates, true);
    int n = CopyRates(sym, (ENUM_TIMEFRAMES)timeframe, start, count, rates);
+// SAR
    double SARArray[];
    int hsar = iSAR(sym, (ENUM_TIMEFRAMES)timeframe, 0.02, 0.2);
    ArraySetAsSeries(SARArray, true);
-   int sarCount = CopyBuffer(hsar, 0, start, count, SARArray);
+   int sarcount = CopyBuffer(hsar, 0, start, count, SARArray);
+   IndicatorRelease(hsar);
+// ADX
+   double adxMainArray[];
+   double adxPdiArray[];
+   double adxMdiArray[];
+   int hadx = iADX(sym, (ENUM_TIMEFRAMES)timeframe, 26);
+   ArraySetAsSeries(adxMainArray, true);
+   ArraySetAsSeries(adxPdiArray, true);
+   ArraySetAsSeries(adxMdiArray, true);
+   int adxcount = CopyBuffer(hadx, 0, start, count, adxMainArray);
+   CopyBuffer(hadx, 1, start, count, adxPdiArray);
+   CopyBuffer(hadx, 2, start, count, adxMdiArray);
+   IndicatorRelease(hadx);
+//
    ulong ulong_var = 0;
    for(int i = 0; i < StringLen(sym); i++)
      {
@@ -65,8 +80,7 @@ void CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[
    double pv = CalculatePriceVolatility(rates);
    for(int i = 0; i < n; ++i)
      {
-      double price = rates[i].high;
-      double priceChange = price * 0.01;
+      double priceChange = rates[i].high * 0.01;
       double pointsChanged = priceChange / pointValue;
       double monetaryValue = pointsChanged * tickValue;
       RateData dst;
@@ -81,12 +95,19 @@ void CopyRateData(string sym, int timeframe, int start, int count, uchar &bytes[
       dst.High = rates[i].high;
       dst.Low = rates[i].low;
       dst.Volume = rates[i].tick_volume;
-      if(i < sarCount)
+      if(i < sarcount)
          dst.ParabolicSar = SARArray[i];
+      if(i < adxcount)
+        {
+         dst.AdxMain = adxMainArray[i];
+         dst.AdxPdi = adxPdiArray[i];
+         dst.AdxMdi = adxMdiArray[i];
+        }
       uchar b[];
       StructToCharArray(dst, b);
       ArrayInsert(bytes, b, ArraySize(bytes));
      }
+   return n;
   }
 //+------------------------------------------------------------------+
 double CalculatePriceVolatility(MqlRates & rates[])
@@ -104,35 +125,24 @@ double CalculatePriceVolatility(MqlRates & rates[])
    return MathSqrt(variance);
   }
 //+------------------------------------------------------------------+
-bool CopyMarketData(string sym, int & timeframes[], datetime from, int count, uchar & bytes[])
+bool CopyMarketData(string sym, int & timeframes[], datetime from, int count, uchar & bytes[], int & counted[])
   {
    for(int tf = 0; tf < ArraySize(timeframes); tf++)
      {
       int start = iBarShift(sym, (ENUM_TIMEFRAMES)timeframes[tf], from);
-      CopyRateData(sym, timeframes[tf], start, count, bytes);
+      int n = CopyRateData(sym, timeframes[tf], start, count, bytes);
+      int cnt[] = {n};
+      ArrayInsert(counted, cnt, ArraySize(counted));
      }
    return true;
-  }
-//+------------------------------------------------------------------+
-void DoMarketRecognition(string sym, int & timeframes[], datetime from, int count, PointData &md[]) export
-  {
-   uchar rd[];
-   uchar mdb[];
-   CopyMarketData(sym, timeframes, from, count, rd);
-   Vorn::Commands::DoMarketRecognition(rd, count, mdb);
-   int m = ArraySize(mdb) / sizeof(PointData);
-   ArrayResize(md, m);
-   for(int i = 0; i < m; i++)
-     {
-      CharArrayToStruct(md[i], mdb, i * sizeof(PointData));
-     }
   }
 //+------------------------------------------------------------------+
 int SendMarketData(string sym, int & timeframes[], datetime from, int count) export
   {
    uchar rd[];
-   CopyMarketData(sym, timeframes, from, count, rd);
-   int key = Vorn::Commands::SendMarketData(rd, count);
+   int counted[];
+   CopyMarketData(sym, timeframes, from, count, rd, counted);
+   int key = Vorn::Commands::SendMarketData(rd, counted);
    return key;
   }
 //+------------------------------------------------------------------+

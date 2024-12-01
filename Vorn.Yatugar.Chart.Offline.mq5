@@ -11,7 +11,8 @@
 //+------------------------------------------------------------------+
 #import "Vorn.Yatugar.Offline.ex5"
 bool InitializeYatugar();
-void DoMarketRecognition(string sym, int & timeframes[], datetime from, int count, PointData &md[]);
+int SendMarketData(string sym, int & timeframes[], datetime from, int count);
+bool ReadPointData(int key,  PointData &md[]);
 string PointDataName(PointData &pd);
 bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0);
 bool DeinitializeYatugar();
@@ -57,16 +58,16 @@ sinput bool ExtremeAreas = true; //Extreme Areas
 sinput bool Fundamental = true; //Fundamental Events
 sinput bool Signals = true; //Signals
 input group           "MN1 "
-sinput bool MN1 = false; // MN1 Enabled
+sinput bool MN1 = true; // MN1 Enabled
 sinput int MN1Size = 7; // MN1 Icon Size
 sinput int MN1Offset = 7; // MN1 Icon Size
 input group           "W1 "
-sinput bool W1 = false; // W1 Enabled
+sinput bool W1 = true; // W1 Enabled
 sinput int W1Size = 6; // W1 Icon Size
 sinput int W1Offset = 6; // W1 Icon Size
 input group           "D1 "
 sinput bool D1 = true; // D1 Enabled
-sinput int D1Size = 5; // D1 Icon Size
+sinput int D1Size = 5; // D1 Icon Size 
 sinput int D1Offset = 5; // D1 Icon Size
 input group           "H4 "
 sinput bool H4 = true; // H4 Enabled
@@ -162,14 +163,14 @@ int OnInit()
    if(MN1)
       if(_Period <= PERIOD_MN1)
         {
-         count = Bars(_Symbol, PERIOD_MN1);
+         //count = Bars(_Symbol, PERIOD_MN1);
          AddTimeFrame(PERIOD_MN1);
         }
    if(W1)
       if(_Period <= PERIOD_W1)
         {
-         if(!MN1)
-            count = Bars(_Symbol, PERIOD_W1);
+         //if(!MN1)
+         //   count = Bars(_Symbol, PERIOD_W1 );
          AddTimeFrame(PERIOD_W1);
         }
    if(D1)
@@ -189,9 +190,9 @@ int OnInit()
          AddTimeFrame(PERIOD_M1);
    bool result = false;
    if(From == NULL)
-      DoMarketRecognition(_Symbol, timeframes, TimeCurrent(), count, pointData);
+      ReadPointData(SendMarketData(_Symbol, timeframes, TimeCurrent(), count), pointData);
    else
-      DoMarketRecognition(_Symbol, timeframes, From, count, pointData);
+      ReadPointData(SendMarketData(_Symbol, timeframes, From, count), pointData);
    if(ArraySize(pointData) == 0)
       ExpertRemove();
    DrawRecognition(pointData, st, timeframes);

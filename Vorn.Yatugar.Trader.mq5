@@ -1,5 +1,4 @@
 //+------------------------------------------------------------------+
-//|                                          Vorn.Yatugar.Trader.mq5 |
 //|                                                             Vorn |
 //|                                                  https://vorn.ir |
 //+------------------------------------------------------------------+
@@ -17,7 +16,6 @@
 bool InitializeYatugar();
 bool DeinitializeYatugar();
 bool FindPointData(PointData & pds[], PointData & pd, int timeframe, int id = NULL, ulong state = NULL, int startIndex = 0);
-void DoMarketRecognition(string sym, int & timeframes[], datetime from, int count, PointData &md[]);
 int SendMarketData(string sym, int & timeframes[], datetime from, int count);
 bool ReadPointData(int key,  PointData &md[]);
 string UlongToString(ulong ulong_var);
@@ -100,6 +98,18 @@ public:
       if(Position.SelectByMagic(Market, SellTradeId(Market, timeframe)))
          SellTrade.PositionModify(Position.Ticket(), Position.StopLoss(), tp);
      };
+   double            GetSellPositionProfit(string Market, string timeframe)
+     {
+      if(Position.SelectByMagic(Market, SellTradeId(Market, timeframe)))
+         return PositionGetDouble(POSITION_PROFIT);
+      return 0;
+     };
+   double            GetBuyPositionProfit(string Market, string timeframe)
+     {
+      if(Position.SelectByMagic(Market, BuyTradeId(Market, timeframe)))
+         return PositionGetDouble(POSITION_PROFIT);
+      return 0;
+     };
    int               GetHashCode(const string value)
      {
       int len = StringLen(value);
@@ -121,17 +131,22 @@ public:
 #import
 //+------------------------------------------------------------------+
 sinput int Candles = 1000;
-//sinput double CashVolatility = 100;
+sinput double CashVolatility = 200;
 //+------------------------------------------------------------------+
 PositionManager pm;
-string markets[] = {"XAUUSD", "EURCAD", "EURCHF", "EURUSD", "EURAUD", "EURGBP", "USDCAD", "USDCHF", "GBPUSD", "GBPCAD", "GBPAUD", "CADCHF"}; //
-int Timeframes[] = {PERIOD_H4, PERIOD_M30, PERIOD_M5};
-int MaxShareTimeframe[] = {15, 10, 5};
+string markets[] = {"XAUUSD", "XAGUSD", "AUDCAD", "AUDCHF", "AUDUSD", "EURCAD", "EURCHF", "EURUSD", "EURAUD", "EURGBP", "USDCAD", "USDCHF", "GBPUSD", "GBPCAD", "GBPAUD", "CADCHF"}; //
+int Timeframes[] = {PERIOD_MN1, PERIOD_W1, PERIOD_D1, PERIOD_H4, PERIOD_M30, PERIOD_M5, PERIOD_M1};//
+int MaxShareTimeframe[] = {0, 0, 5, 10, 15, 20, 25};
+//+------------------------------------------------------------------+
+int TimeFrameSteps = 4;
+double TimeFrameStepLevels[] = {9.48, 15.33, 24.82, 0};
+double TimeFrameStepVolumes[] = {.8, .1, .1, .05};
 //+------------------------------------------------------------------+
 int OnInit()
   {
    if(InitializeYatugar())
      {
+      Search(Timeframes);
       EventSetTimer(PeriodSeconds(_Period));
       return(INIT_SUCCEEDED);
      }
@@ -203,35 +218,43 @@ void Search(int key, int & timeframes[])
 void SellState(PointData & pd, int maxShares)
   {
    string sym = UlongToString(pd.MarketName);
-   string tf = (string)pd.TimeFrame;
-   if(pm.HasBuyPosition(sym, tf))
+   for(int step = 0; step < TimeFrameSteps; step++)
      {
-      pm.CloseBuyPosition(sym, tf);
-     }
-   else
-      if(!pm.HasSellPosition(sym, tf))
+      string tf = (string)pd.TimeFrame + (string)step;
+      if(pm.HasBuyPosition(sym, tf))
         {
-         double vol = maxShares * .01;
-         if(pd.ReverseRate > 0)
-            pm.OpenSellPosition(sym, vol, pd.ReverseRate, pd.Unbalancing, tf);
+         pm.CloseBuyPosition(sym, tf);
         }
+      else
+         if(!pm.HasSellPosition(sym, tf))
+           {
+            double vol = maxShares * .01;//(CashVolatility / pd.Volatility) * .001; //
+            //if(pd.ReverseRate > 0)
+            double trendScalar = pd.F100 - pd.F0;
+            pm.OpenSellPosition(sym, vol * TimeFrameStepVolumes[step], pd.ReverseRate, pd.F0 + trendScalar * TimeFrameStepLevels[step], tf);
+           }
+     }
   }
 //+------------------------------------------------------------------+
 void BuyState(PointData & pd, int maxShares)
   {
    string sym = UlongToString(pd.MarketName);
-   string tf = (string)pd.TimeFrame;
-   if(pm.HasSellPosition(sym, tf))
+   for(int step = 0; step < TimeFrameSteps; step++)
      {
-      pm.CloseSellPosition(sym, tf);
-     }
-   else
-      if(!pm.HasBuyPosition(sym, tf))
+      string tf = (string)pd.TimeFrame + (string)step;
+      if(pm.HasSellPosition(sym, tf))
         {
-         double vol = maxShares * .01; //MathFloor(MathMin((CashVolatility / pd.Volatility), maxShares)) * .01;
-         if(pd.ReverseRate > 0)
-            pm.OpenBuyPosition(sym, vol, pd.ReverseRate, pd.Unbalancing, tf);
+         pm.CloseSellPosition(sym, tf);
         }
+      else
+         if(!pm.HasBuyPosition(sym, tf))
+           {
+            double vol = maxShares * .01;//(CashVolatility / pd.Volatility) * .001; //MathFloor(MathMin((CashVolatility / pd.Volatility), maxShares)) * .01;
+            //if(pd.ReverseRate > 0)
+            double trendScalar = pd.F100 - pd.F0;
+            pm.OpenBuyPosition(sym, vol * TimeFrameStepVolumes[step], pd.ReverseRate, pd.F0 + trendScalar * TimeFrameStepLevels[step], tf);
+           }
+     }
   }
 //+------------------------------------------------------------------+
 void OpenPositions(PointData & pd[], int & timeframes[])
@@ -242,21 +265,6 @@ void OpenPositions(PointData & pd[], int & timeframes[])
         {
          if(timeframes[tf] != pd[p].TimeFrame)
             continue;
-         //if(StateReport(pd[p], StateValues::Signal()))
-         //   if(pd[p].Index < 3)
-         //     {
-         //      TimeFrame timeFrame = (TimeFrame)pd[p].TimeFrame;
-         //      TimeFrame upper = Vorn::TimeFrameExtensions::Above(timeFrame);
-         //      PointData m;
-         //      FindPointData(pd, m, (int)upper, NULL, StateValues::StraightMaster());
-         //      if(m.F0 < m.F100)
-         //         if(StateReport(pd[p], StateValues::BuySignal()))
-         //            BuyState(pd[p], 0, 0, MaxShareTimeframe[tf]);
-         //      if(m.F0 > m.F100)
-         //         if(StateReport(pd[p], StateValues::SellSignal()))
-         //            SellState(pd[p], 0, 0, MaxShareTimeframe[tf]);
-         //      Print((string)pd[p].Index + " " + (string)pd[p].TimeFrame + " " + (m.F0 < m.F100 ? "+" : "-"));
-         //     }
          if(StateReport(pd[p], StateValues::Buy()))
             if(pd[p].Index < 3)
                BuyState(pd[p], MaxShareTimeframe[tf]);
@@ -274,24 +282,47 @@ void AdjustPositions(PointData & pd[])
    string sym = UlongToString(pd[0].MarketName);
    TimeFrame timeFrame = (TimeFrame)pd[0].TimeFrame;
    TimeFrame upper = Vorn::TimeFrameExtensions::Above(timeFrame);
-   string tf = (string)timeFrame;
-   if(pm.HasSellPosition(sym, tf))
      {
-      PointData p;
-      FindPointData(pd, p, (int)upper, NULL, StateValues::NegativeSar());
-      pm.ModifySellPositionStopLoss(sym, tf, p.Value);
-      //PointData m;
-      //FindPointData(pd, m, (int)timeFrame, NULL, StateValues::NegativeMaster());
-      //pm.ModifySellPositionTakeProfit(sym, tf, m.Unbalancing);
+      // for compatibility. can be removed later.
+      string tf = (string)timeFrame;
+      if(pm.HasSellPosition(sym, tf))
+         if(pm.GetSellPositionProfit(sym, tf) > 0)
+           {
+            PointData p;
+            FindPointData(pd, p, (int)upper, NULL, StateValues::NegativeSar());
+            if(p.Value > 0)
+               pm.ModifySellPositionStopLoss(sym, tf, p.Value);
+           }
+      if(pm.HasBuyPosition(sym, tf))
+         if(pm.GetBuyPositionProfit(sym, tf) > 0)
+           {
+            PointData p;
+            FindPointData(pd, p, (int)upper, NULL, StateValues::PositiveSar());
+            if(p.Value > 0)
+               pm.ModifyBuyPositionStopLoss(sym, tf, p.Value);
+           }
      }
-   if(pm.HasBuyPosition(sym, tf))
      {
-      PointData p;
-      FindPointData(pd, p, (int)upper, NULL, StateValues::PositiveSar());
-      pm.ModifyBuyPositionStopLoss(sym, tf, p.Value);
-      //PointData m;
-      //FindPointData(pd, m, (int)timeFrame, NULL, StateValues::PositiveMaster());
-      //pm.ModifyBuyPositionTakeProfit(sym, tf, m.Unbalancing);
+      for(int step = 0; step < TimeFrameSteps - 1; step++) // last one does not get trailed
+        {
+         string tf = (string)timeFrame + (string)step;
+         if(pm.HasSellPosition(sym, tf))
+            if(pm.GetSellPositionProfit(sym, tf) > 0)
+              {
+               PointData p;
+               FindPointData(pd, p, (int)upper, NULL, StateValues::NegativeSar());
+               if(p.Value > 0)
+                  pm.ModifySellPositionStopLoss(sym, tf, p.Value);
+              }
+         if(pm.HasBuyPosition(sym, tf))
+            if(pm.GetBuyPositionProfit(sym, tf) > 0)
+              {
+               PointData p;
+               FindPointData(pd, p, (int)upper, NULL, StateValues::PositiveSar());
+               if(p.Value > 0)
+                  pm.ModifyBuyPositionStopLoss(sym, tf, p.Value);
+              }
+        }
      }
   }
 //+------------------------------------------------------------------+
